@@ -358,6 +358,9 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
             <select id="lead"><option value="0">0 m</option><option value="50">50 m</option><option value="100" selected>100 m</option><option value="200">200 m</option></select>
             <span class="hint">L'avviso arriva prima dell'inizio.</span></div>
         </div>
+        <div class="field"><label for="maxWp">Massimo waypoint per file</label>
+          <input type="number" id="maxWp" min="2" max="500" step="1" value="25" style="max-width:120px">
+          <span class="hint">Wikiloc ne accetta al massimo 25 per percorso: se ne servono di più, la pagina unisce i tratti più corti.</span></div>
         <label class="check" for="boostChk"><input type="checkbox" id="boostChk"> Avvisa anche le rampe brevi (80–300 m oltre il 14%) da fare col Boost</label>
       </fieldset>
     </div>
@@ -422,7 +425,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 
   var state = {
     rider: { riderWeight: 82, bikeWeight: 24.2, battery: 'RS800', style: 'bilanciato', effort: 'normale', riderPower: 150, cadence: 80 },
-    route: { strategy: 'waypoint', mapping: Object.assign({}, DEFAULT_MAP), sens: 'media', lead: 100, boost: false, startPct: 100, reservePct: 15, surface: 'mixed', adapt: true },
+    route: { strategy: 'waypoint', maxWp: 25, mapping: Object.assign({}, DEFAULT_MAP), sens: 'media', lead: 100, boost: false, startPct: 100, reservePct: 15, surface: 'mixed', adapt: true },
     modes: null, file: null, base: null, result: null, schemaText: ''
   };
 
@@ -588,6 +591,11 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     $('sens').addEventListener('change', function () { R.sens = $('sens').value; sensHint(); save(); replan(); });
     $('lead').value = String(R.lead);
     $('lead').addEventListener('change', function () { R.lead = +$('lead').value; save(); replan(); });
+    $('maxWp').value = R.maxWp;
+    $('maxWp').addEventListener('input', function () {
+      var v = parseInt($('maxWp').value, 10);
+      if (v >= 2) { R.maxWp = v; save(); replan(); }
+    });
     $('boostChk').checked = !!R.boost;
     $('boostChk').addEventListener('change', function () { R.boost = $('boostChk').checked; save(); replan(); });
     $('gpxFile').addEventListener('change', function () {
@@ -619,14 +627,14 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
   }
   function planOpts() {
     var R = state.route, sens = SENS[R.sens] || SENS.media;
-    return { mapping: R.mapping, minLen: sens.minLen, minUp: sens.minUp, lead: R.lead, boost: R.boost, adapt: R.adapt };
+    return { mapping: R.mapping, minLen: sens.minLen, minUp: sens.minUp, lead: R.lead, boost: R.boost, adapt: R.adapt, maxWaypoints: R.maxWp };
   }
 
   function replan() {
     if (!state.base) return;
     var e = energyParams(state.modes), R = state.route;
     state.result = (R.strategy === 'auto' && e)
-      ? P.autoPlan(state.base, { adapt: R.adapt, lead: R.lead, boost: R.boost }, e)
+      ? P.autoPlan(state.base, { adapt: R.adapt, lead: R.lead, boost: R.boost, maxWaypoints: R.maxWp }, e)
       : P.plan(state.base, planOpts(), e);
     renderRoute();
   }
@@ -650,10 +658,17 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     stat('Dislivello', '+' + Math.round(r.gain) + ' m');
     if (r.auto) stat('AUTO', r.auto.setting.levelMin + '–' + r.auto.setting.levelMax, '', r.auto.setting.maxPower + ' W · ' + r.auto.setting.maxTorque + ' Nm');
     else stat('Cambi', String(changes));
+    stat('Waypoint', String(r.waypoints.length), r.cap && r.cap.limit && r.waypoints.length >= r.cap.limit ? 'bad' : '', r.cap && r.cap.limit ? 'max ' + r.cap.limit + ' per file' : '');
     if (en) {
       stat('Consumo', Math.round(en.totalWh) + ' Wh', '', Math.round(en.low) + '–' + Math.round(en.high) + ' Wh');
-      stat('Arrivo', '~' + Math.round(en.arrivalPct) + '%', en.fits ? 'ok' : 'bad',
-        'tra ' + Math.max(0, Math.round(en.arrivalWorst)) + '% e ' + Math.round(en.arrivalBest) + '% · riserva ' + en.reservePct + '%');
+      if (en.arrivalPct < 0) {
+        var emptyAt = null;
+        for (var pi = 0; pi < r.profile.length; pi++) { if (r.profile[pi].pct <= 0) { emptyAt = r.profile[pi].d; break; } }
+        stat('Arrivo', 'scarica', 'bad', 'finisce verso il km ' + (emptyAt != null ? P.fmtKm(emptyAt) : '?') + ' · riserva ' + en.reservePct + '%');
+      } else {
+        stat('Arrivo', '~' + Math.round(en.arrivalPct) + '%', en.fits ? 'ok' : 'bad',
+          'tra ' + Math.max(0, Math.round(en.arrivalWorst)) + '% e ' + Math.max(0, Math.round(en.arrivalBest)) + '% · riserva ' + en.reservePct + '%');
+      }
     }
     var share = el('div', 'share');
     var bar = el('div', 'share-bar'), legend = el('div', 'share-legend');
@@ -697,7 +712,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
         a.proposed.maxPower + ' W a livelli ' + st.levelMin + '–' + st.levelMax + ', ' + st.maxPower + ' W.');
     }
     why.push('Con l\'AUTO della scheda (livelli ' + a.tuned.levelMin + '–' + a.tuned.levelMax + ', ' + a.tuned.maxPower + ' W) consumeresti ~' +
-      Math.round(a.tunedEnergy.totalWh) + ' Wh e arriveresti al ~' + pct(a.tunedEnergy.arrivalPct) + '.');
+      Math.round(a.tunedEnergy.totalWh) + ' Wh e ' + (a.tunedEnergy.arrivalPct < 0 ? 'la batteria finirebbe prima dell\'arrivo.' : 'arriveresti al ~' + pct(a.tunedEnergy.arrivalPct) + '.'));
     var range = st.levelMin !== st.levelMax;
     box.innerHTML = '<div class="auto-head"><div><h3>AUTO per questo giro</h3><div class="meta">Consumo ~' + Math.round(en.totalWh) +
       ' Wh · arrivo ~' + pct(en.arrivalPct) + ' · riserva ' + R.reservePct + '%</div></div><button type="button" class="btn" id="copyAuto">Copia AUTO</button></div>' +
@@ -715,25 +730,39 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     });
   }
 
+  function capNote(r) {
+    var c = r.cap, parts = [];
+    if (!c || !c.limit) return '';
+    if (c.escalated) parts.push('per stare nei ' + c.limit + ' waypoint ho unito i tratti più corti: ora un tratto che alza l\'assistenza deve essere lungo almeno ' +
+      c.minUp + ' m e gli altri ' + c.minLen + ' m');
+    if (c.droppedBoost) parts.push('ho tolto ' + c.droppedBoost + (c.droppedBoost === 1 ? ' avviso Boost' : ' avvisi Boost') + ' sulle rampe meno ripide');
+    return parts.length ? parts.join('; ').replace(/^./, function (x) { return x.toUpperCase(); }) + '.' : '';
+  }
+
   function renderPlanNote() {
     var r = state.result, en = r.energy, box = $('planNote'), R = state.route;
     box.innerHTML = '';
+    var cn = capNote(r);
+    if (cn) box.appendChild(el('p', 'callout', esc(cn)));
     if (!en) { box.appendChild(el('p', 'callout', 'Correggi i dati della scheda modalità per vedere la stima della batteria.')); return; }
+    var arrive = function (pct) { return pct < 0 ? 'la batteria finisce prima dell\'arrivo' : 'arrivi intorno al ' + Math.round(pct) + '%'; };
+    var under = function (pct) { return pct < 0 ? '' : ', sotto la riserva del ' + R.reservePct + '%'; };
     if (r.auto) {
-      if (r.exhausted) box.appendChild(el('p', 'callout', esc('Anche con AUTO al livello più basso arrivi intorno al ' + Math.max(0, Math.round(en.arrivalPct)) +
-        '%, sotto il ' + R.reservePct + '% che vuoi. Parti più carico, accorcia il giro o abbassa la riserva.')));
-      else if (!en.fits) box.appendChild(el('p', 'callout', esc('Con questa AUTO arrivi intorno al ' + Math.round(en.arrivalPct) + '%, sotto la riserva del ' +
-        R.reservePct + '%. Attiva "abbassa i livelli di AUTO" per adattarla.')));
+      if (r.exhausted) box.appendChild(el('p', 'callout', esc('Anche con AUTO al livello più basso ' + arrive(en.arrivalPct) + under(en.arrivalPct) +
+        '. Parti più carico, accorcia il giro o abbassa la riserva.')));
+      else if (!en.fits) box.appendChild(el('p', 'callout', esc('Con questa AUTO ' + arrive(en.arrivalPct) + under(en.arrivalPct) +
+        '. Attiva "abbassa i livelli di AUTO" per adattarla.')));
       return;
     }
     var list = r.changes.map(function (c) { return BAND_LABEL[c.band] + ' ' + LABEL[c.from] + ' → ' + LABEL[c.to]; }).join(', ');
     if (r.exhausted) {
-      var msg = 'Anche facendo tutto in ECO arrivi intorno al ' + Math.max(0, Math.round(en.arrivalPct)) + '%, sotto il ' + R.reservePct + '% che vuoi.';
+      var msg = 'Anche facendo tutto in ECO ' + arrive(en.arrivalPct) + under(en.arrivalPct) + '.';
       if (state.rider.style !== 'risparmio') {
         var alt = modesFor('risparmio');
         if (!alt.error) {
-          var altPlan = P.plan(state.base, planOpts(), energyParams(alt));
-          msg += ' Con lo stile Risparmio nella scheda il piano arriva al ~' + Math.max(0, Math.round(altPlan.energy.arrivalPct)) + '%.';
+          var altPct = P.plan(state.base, planOpts(), energyParams(alt)).energy.arrivalPct;
+          msg += altPct < 0 ? ' Anche con lo stile Risparmio nella scheda la batteria non basta: parti più carico o accorcia il giro.'
+            : ' Con lo stile Risparmio nella scheda il piano arriva al ~' + Math.round(altPct) + '%.';
         }
       } else {
         msg += ' Parti più carico, accorcia il giro o abbassa la riserva.';
@@ -742,7 +771,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     } else if (r.changes.length) {
       box.appendChild(el('p', 'callout', esc('Per arrivare con almeno il ' + R.reservePct + '% il piano usa meno assistenza: ' + list + '. Le modalità che hai scelto restano salvate.')));
     } else if (!en.fits) {
-      box.appendChild(el('p', 'callout', esc('Con queste modalità arrivi intorno al ' + Math.round(en.arrivalPct) + '%, sotto la riserva del ' + R.reservePct + '%. Attiva "abbassa le modalità" per adattare il piano.')));
+      box.appendChild(el('p', 'callout', esc('Con queste modalità ' + arrive(en.arrivalPct) + under(en.arrivalPct) + '. Attiva "abbassa le modalità" per adattare il piano.')));
     }
   }
 

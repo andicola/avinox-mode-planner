@@ -47,6 +47,7 @@ Tutto gira nel browser: il file GPX non viene caricato da nessuna parte.
 - Fasce: discesa < −2%, pianura < 3%, ondulato 3–7%, salita 7–12%, ripida 12–18%, estrema > 18%. Ogni fascia ha una modalità, modificabile. In discesa la modalità resta quella del tratto prima.
 - I tratti troppo corti vengono assorbiti dal vicino più simile. Una salita che alza l'assistenza resta se è lunga almeno 300/400/600 m (avvisi molti/equilibrati/pochi). Gli altri tratti devono arrivare a 500/800/1200 m.
 - Il waypoint di una salita arriva con un anticipo regolabile (0–200 m). Facoltativo: avvisi per le rampe brevi (80–300 m oltre il 14%) da fare col Boost.
+- **Limite di waypoint**: Wikiloc accetta al massimo 25 waypoint per percorso (valore modificabile). Se il giro ne richiede di più, le lunghezze minime dei tratti crescono del 25% alla volta finché si rientra; gli avvisi Boost usano solo i posti rimasti e restano quelli delle rampe più ripide.
 
 ### Tutto in AUTO
 

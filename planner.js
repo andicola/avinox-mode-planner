@@ -313,6 +313,20 @@
     }
     function idxOf(base, d) { return Math.min(base.N - 1, Math.max(0, Math.round(d / STEP))); }
 
+    /**
+     * Come segment, ma resta entro maxRuns tratti: se ce ne sono di più alza le
+     * lunghezze minime del 25% alla volta, così spariscono per primi i tratti più corti.
+     * Ogni tratto è un waypoint (il primo è lo START): Wikiloc ne accetta al massimo 25.
+     */
+    function segmentWithin(base, mapping, minLen, minUp, maxRuns) {
+        var len = minLen, up = minUp, runs = segment(base, mapping, len, up), steps = 0;
+        while (maxRuns && runs.length > maxRuns && steps < 40) {
+            len *= 1.25; up *= 1.25; steps++;
+            runs = segment(base, mapping, len, up);
+        }
+        return { runs: runs, minLen: Math.round(len), minUp: Math.round(up), escalated: steps > 0 };
+    }
+
     /* ---------------- energia (stesso modello del calcolatore) ---------------- */
     /* Consumo dal pacco: 3,8 Wh/km in piano + 0,24 Wh per metro di dislivello ogni
        100 kg, per il fattore del fondo e +35% sui tratti oltre il 12%. Questo è il
@@ -405,7 +419,7 @@
         return steps;
     }
 
-    function buildWaypoints(base, runs, mapping, opts, energy) {
+    function buildWaypoints(base, runs, mapping, opts, energy, maxBoost) {
         var pts = base.points, g = base.g, N = base.N, lead = opts.lead, wps = [], lastD = -Infinity, k;
         var batt = function (d) { return energy ? ' Batteria prevista ~' + Math.round(energy.pctAt(d)) + '%.' : ''; };
         runs.forEach(function (r, i) {
@@ -441,12 +455,20 @@
                 rs = -1;
             }
         }
+        var droppedBoost = 0;
         if (opts.boost) {
+            var room = isFinite(maxBoost) ? Math.max(0, maxBoost) : Infinity, own = [];
             ramps.forEach(function (rp) {
                 var d = Math.max(0, rp.start - lead);
                 var lenTxt = Math.round(rp.length / 10) * 10 + ' m';
                 var near = wps.filter(function (w) { return w.kind !== 'boost' && Math.abs(w.dist - d) < 200; })[0];
                 if (near) { near.desc += ' Subito dopo: rampa di ' + lenTxt + ' al ' + Math.round(rp.maxGrade) + '%, usa il Boost.'; return; }
+                own.push({ rp: rp, d: d, lenTxt: lenTxt });
+            });
+            own.sort(function (x, y) { return y.rp.maxGrade - x.rp.maxGrade; });
+            droppedBoost = Math.max(0, own.length - room);
+            own.slice(0, room).forEach(function (o) {
+                var rp = o.rp, d = o.d, lenTxt = o.lenTxt;
                 var p = positionAt(pts, d);
                 wps.push({
                     kind: 'boost', mode: 'boost', dist: d, changeAt: rp.start, lat: p.lat, lon: p.lon, ele: p.ele, run: null,
@@ -458,32 +480,35 @@
             });
             wps.sort(function (x, y) { return x.dist - y.dist; });
         }
-        return { waypoints: wps, ramps: ramps };
+        return { waypoints: wps, ramps: ramps, droppedBoost: droppedBoost };
     }
 
     /**
      * Piano completo.
-     * opts: { mapping, minLen, minUp, lead, boost, adapt }
+     * opts: { mapping, minLen, minUp, lead, boost, adapt, maxWaypoints }
      * e (facoltativo): { modes, totalWeight, riderW, rpm, batteryWh, startPct, reservePct, surface }
      * Con adapt attivo e arrivo sotto la riserva, abbassa le fasce finché il giro ci sta.
      */
     L.plan = function (base, opts, e) {
         var wanted = Object.assign({}, opts.mapping), mapping = Object.assign({}, wanted);
-        var runs = segment(base, mapping, opts.minLen, opts.minUp);
+        var limit = opts.maxWaypoints > 0 ? Math.floor(opts.maxWaypoints) : 0;
+        var seg = segmentWithin(base, mapping, opts.minLen, opts.minUp, limit);
+        var runs = seg.runs;
         var energy = e ? energyOf(base, runs, e) : null;
         var exhausted = false;
         if (energy && opts.adapt && !energy.fits) {
             var steps = downgradeSteps(mapping), i = 0;
             while (!energy.fits && i < steps.length) {
                 mapping[steps[i].band] = steps[i].to; i++;
-                runs = segment(base, mapping, opts.minLen, opts.minUp);
+                seg = segmentWithin(base, mapping, opts.minLen, opts.minUp, limit);
+                runs = seg.runs;
                 energy = energyOf(base, runs, e);
             }
             exhausted = !energy.fits;
         }
         var changes = BAND_ORDER.filter(function (b) { return mapping[b] !== wanted[b]; })
             .map(function (b) { return { band: b, from: wanted[b], to: mapping[b] }; });
-        var wp = buildWaypoints(base, runs, mapping, opts, energy);
+        var wp = buildWaypoints(base, runs, mapping, opts, energy, limit ? limit - runs.length : Infinity);
         var share = { eco: 0, auto: 0, trail: 0, turbo: 0 };
         runs.forEach(function (r) { share[r.mode] += r.length; });
         var profile = [];
@@ -498,7 +523,8 @@
             total: base.total, gain: base.gain, loss: base.loss, minEle: base.minEle, maxEle: base.maxEle,
             points: base.points, track: base.track, profile: profile,
             runs: runs, waypoints: wp.waypoints, ramps: wp.ramps, share: share,
-            mapping: mapping, changes: changes, energy: energy, exhausted: exhausted
+            mapping: mapping, changes: changes, energy: energy, exhausted: exhausted,
+            cap: { limit: limit, escalated: seg.escalated, minLen: seg.minLen, minUp: seg.minUp, droppedBoost: wp.droppedBoost }
         };
     };
 
@@ -594,7 +620,8 @@
         tunedSetting.maxTorque = tuned.maxTorque; tunedSetting.start = tuned.start; tunedSetting.accel = tuned.accel;
 
         var run = { mode: 'auto', start: 0, end: base.total, i0: 0, i1: N - 1, length: base.total, gain: base.gain, loss: base.loss, maxGrade: gMax };
-        var wp = buildWaypoints(base, [run], { steep: 'turbo' }, opts, energy);
+        var limit = opts.maxWaypoints > 0 ? Math.floor(opts.maxWaypoints) : 0;
+        var wp = buildWaypoints(base, [run], { steep: 'turbo' }, opts, energy, limit ? limit - 1 : Infinity);
         var startWp = wp.waypoints.filter(function (w) { return w.kind === 'start'; })[0];
         if (startWp) {
             var after = startWp.desc.indexOf(' Subito dopo:') >= 0 ? startWp.desc.slice(startWp.desc.indexOf(' Subito dopo:')) : '';
@@ -612,6 +639,7 @@
             points: base.points, track: base.track, profile: profile,
             runs: [run], waypoints: wp.waypoints, ramps: wp.ramps, share: { eco: 0, auto: base.total, trail: 0, turbo: 0 },
             mapping: null, changes: [], energy: energy, exhausted: exhausted,
+            cap: { limit: limit, escalated: false, droppedBoost: wp.droppedBoost },
             auto: {
                 setting: current, proposed: proposed, tuned: tunedSetting, tunedEnergy: simulate(tunedSetting),
                 adapted: steps.length > 0, p90: p90, gMax: gMax, steepShare: steepShare, soft: soft,

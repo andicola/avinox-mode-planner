@@ -122,3 +122,22 @@ test('tutto in AUTO: impostazioni nei limiti dell\'app e adattamento alla riserv
   assert.ok(impossible.exhausted);
   assert.equal(impossible.auto.setting.levelMin, 3);
 });
+
+test('rispetta il limite di waypoint di Wikiloc', () => {
+  // quattro giri dell'anello di esempio uno dopo l'altro: ~118 km
+  const one = P.sampleRoute().points;
+  const long = [].concat(one, one, one, one);
+  const base = P.prepareRoute(long);
+  const many = Object.assign({}, OPTS, { minLen: 500, minUp: 300, boost: true });
+
+  const free = P.plan(base, many, null);
+  assert.ok(free.waypoints.length > 25, `senza limite: ${free.waypoints.length} waypoint`);
+
+  const capped = P.plan(base, Object.assign({}, many, { maxWaypoints: 25 }), null);
+  assert.ok(capped.waypoints.length <= 25, `con limite: ${capped.waypoints.length} waypoint`);
+  assert.ok(capped.cap.escalated);
+  assert.ok(capped.cap.minUp > 300);
+
+  const tight = P.plan(base, Object.assign({}, many, { maxWaypoints: 5 }), null);
+  assert.ok(tight.waypoints.length <= 5);
+});
