@@ -30,7 +30,7 @@ jobs:
       - name: Prepara il sito
         run: |
           mkdir -p _site
-          cp index.html planner.js _site/
+          cp -r index.html planner.js surface-osm.js manifest.webmanifest sw.js icons _site/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

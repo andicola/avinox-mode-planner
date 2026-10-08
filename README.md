@@ -1,3 +1,5 @@
+<img src="icons/icon.svg" width="88" alt="">
+
 # Avinox Mode Planner
 
 Pagina web per chi pedala con un motore **DJI Avinox M2/M2S** (sviluppata su una Amflow PR Carbon Pro con batteria RS800). Fa due cose:
@@ -11,7 +13,8 @@ Tutto gira nel browser: il file GPX non viene caricato da nessuna parte.
 
 ## Come si usa
 
-- **Online**: https://andicola.github.io/avinox-mode-planner/ (quando GitHub Pages è attivo, vedi sotto).
+- **Online**: https://andicola.github.io/avinox-mode-planner/
+- **Come app sull'iPhone**: apri l'indirizzo con Safari, tocca **Condividi** e poi **Aggiungi alla schermata Home**. Si apre a tutto schermo con la sua icona e funziona anche senza rete (serve la rete solo per leggere il fondo da OpenStreetMap). Su Android: menu di Chrome → **Installa app**.
 - **In locale**: apri `index.html` nel browser, oppure `npm run serve` e vai su http://localhost:8080.
 - **Docker**:
 
@@ -71,6 +74,22 @@ Usa lo stesso modello di consumo del calcolatore originale, applicato tratto per
 
 La stima ha un margine di circa ±22%. Se con le modalità scelte arrivi sotto la riserva, il piano abbassa l'assistenza a giri successivi, dalla fascia più facile alla più ripida, finché ci stai. Le modalità scelte restano salvate. Se non basta nemmeno tutto in ECO, la pagina lo segnala e mostra il risultato con lo stile Risparmio.
 
+### In sella: batteria prevista e minima
+
+Ogni waypoint riporta nel nome la **batteria minima per finire il giro con la riserva** (per esempio "TRAIL · 2,4 km +210 m · min 38%"); nella descrizione c'è anche quella prevista. Quando l'orologio vibra guardi il display: se sei sotto la minima, scendi di una modalità o passa a **RISERVA**.
+
+- **RISERVA** è una modalità personalizzata da creare nell'app Avinox (livello fisso, 1,10 W/kg, avvio e continuità al minimo), come la "ROUTE RESERVE" proposta dal calcolatore originale. La scheda modalità la calcola insieme alle altre.
+- **Parti con almeno**: la carica che serve alla partenza per arrivare con la riserva, arrotondata ai 5%, e la stessa con il margine del modello. Spesso non serve caricare al 100%.
+- **Temperatura**: sotto i 15 °C la capacità utile viene ridotta in modo prudente (95% tra 5 e 15 °C, 88% tra 0 e 5 °C, 80% sotto zero). Sono stime, non dati DJI.
+
+### Fondo da OpenStreetMap
+
+Con un GPX caricato, **Leggi il fondo da OpenStreetMap** invia a Overpass solo punti campionati della traccia (uno ogni 500 m) e classifica il fondo delle strade in sei voci (asfalto, sterrato compatto, terra, sassi e radici, roccia, fango). Ogni tratto usa il suo fondo per il consumo e, con AUTO, per la coppia; dove OSM non dice nulla vale il fondo prevalente. Il lettore è `surface-osm.js` del calcolatore originale, senza modifiche. Dentro l'artifact di claude.ai la richiesta è bloccata: funziona da GitHub Pages, dall'app installata o in locale.
+
+### Taratura con i giri reali
+
+Dopo un giro fatto seguendo il piano, scrivi la batteria alla partenza e all'arrivo e salva. Il fattore del giro è il consumo vero (in Wh, con la stessa correzione per il freddo) diviso per la stima del modello senza taratura. Le stime successive usano la mediana dei fattori tra 0,5 e 1,5; quelli fuori scala restano in lista ma non contano. I giri sono salvati solo nel browser.
+
 ## Sviluppo
 
 ```sh
@@ -79,8 +98,10 @@ npm run build:single   # dist/avinox-mode-planner.html
 ```
 
 - `index.html`: interfaccia (HTML, CSS e JS senza framework).
-- `planner.js`: calcolo delle modalità, lettura GPX/KML, tratti, energia, export GPX e zip. Funziona sia nel browser sia in Node.
-- `test/`: test del calcolo, del piano, del GPX e dello zip.
+- `planner.js`: calcolo delle modalità, lettura GPX/KML, tratti, energia, taratura, export GPX e zip. Funziona sia nel browser sia in Node.
+- `surface-osm.js`: lettura del fondo da OpenStreetMap (dal calcolatore originale).
+- `manifest.webmanifest`, `sw.js`, `icons/`: app installabile e funzionamento offline. Le icone si rigenerano con `python3 scripts/make-icons.py` (serve Playwright).
+- `test/`: test del calcolo, del piano, della batteria, della taratura, del GPX e dello zip.
 
 ### GitHub Pages
 
@@ -88,7 +109,7 @@ Il workflow `.github/workflows/pages.yml` pubblica la pagina a ogni push su `mai
 
 ## Crediti e licenza
 
-- Calcolo delle modalità e modello di consumo: [avinox-setup-app](https://github.com/lucad87/avinox-setup-app) di Luca Donnaloia ([versione online](https://avinox-calculator.lucad.cloud/)), licenza MIT.
+- Calcolo delle modalità, modello di consumo e lettura del fondo da OpenStreetMap: [avinox-setup-app](https://github.com/lucad87/avinox-setup-app) di Luca Donnaloia ([versione online](https://avinox-calculator.lucad.cloud/)), licenza MIT.
 - Licenza MIT, vedi [LICENSE](LICENSE).
 - Progetto non ufficiale, non affiliato a DJI né ad Amflow. I valori sono stime: verificali con i tuoi giri.
 

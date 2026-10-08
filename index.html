@@ -3,6 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#161A19">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Avinox Planner">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="description" content="Schema delle modalità DJI Avinox e waypoint di cambio modalità da GPX per Wikiloc, con stima della batteria.">
 <title>Avinox Mode Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -59,14 +68,15 @@ h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-
 p { margin: 0; }
 button, select, input { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.mode-reserve { --m: var(--muted); }
+.mode-reserve .mname b { font-size: 21px; }
 .mode-eco { --m: var(--eco); } .mode-auto { --m: var(--auto); } .mode-trail { --m: var(--trail); } .mode-turbo { --m: var(--turbo); } .mode-boost { --m: var(--boost); }
 
 /* ---------- testata ---------- */
 .mast { display: grid; gap: 10px; }
 .eyebrow { font-family: var(--f-data); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.mast h1 { font-size: clamp(40px, 7vw, 68px); font-weight: 700; letter-spacing: -.01em; text-transform: uppercase; }
-.mast h1 .ticks { display: inline-flex; gap: 5px; vertical-align: middle; margin-left: 12px; transform: translateY(-6px); }
-.mast h1 .ticks i { display: block; width: 10px; height: 28px; background: var(--m); border-radius: 2px; transform: skewX(-12deg); }
+.mast h1 { font-size: clamp(40px, 7vw, 68px); font-weight: 700; letter-spacing: -.01em; text-transform: uppercase; display: flex; align-items: center; gap: .28em; }
+.mast h1 .logo { width: 1.15em; height: 1.15em; flex: none; }
 .mast p { max-width: 62ch; color: var(--muted); font-size: 17px; }
 
 .sec-head { display: grid; gap: 4px; margin-bottom: 16px; }
@@ -168,7 +178,21 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 .share-bar i { display: block; height: 100%; background: var(--m); }
 .share-legend { display: flex; flex-wrap: wrap; gap: 2px 14px; font-family: var(--f-data); font-size: 12px; color: var(--muted); }
 .share-legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; background: var(--m); margin-right: 5px; }
-.plan-note { margin-top: 12px; }
+.plan-note { margin-top: 12px; display: grid; gap: 8px; }
+.osm-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.osm-row .btn { font-size: 13.5px; padding: 6px 10px; }
+.calib { margin-top: 20px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); padding: 14px 18px 16px; display: grid; gap: 12px; }
+.calib h3 { font-size: 22px; font-weight: 600; text-transform: uppercase; }
+.calib-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.calib-form .field { width: 140px; }
+.rides { list-style: none; margin: 0; padding: 0; display: grid; }
+.rides li { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.rides li .f { font-family: var(--f-data); font-weight: 600; }
+.rides li .f.out { color: var(--bad); text-decoration: line-through; }
+.rides li button { margin-left: auto; font-size: 13px; padding: 4px 10px; }
+.install { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); padding: 16px 18px; }
+.install ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.install code { font-family: var(--f-data); font-size: 13px; overflow-wrap: anywhere; }
 .plan-note:empty { display: none; }
 
 .chart { margin-top: 14px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); padding: 8px 6px 4px; }
@@ -232,7 +256,18 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 <div class="wrap">
   <header class="mast">
     <div class="eyebrow">Amflow PR Carbon Pro · Avinox M2S</div>
-    <h1>Avinox Mode Planner<span class="ticks" aria-hidden="true"><i class="mode-eco"></i><i class="mode-auto"></i><i class="mode-trail"></i><i class="mode-turbo"></i></span></h1>
+    <h1><svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true">
+  <rect width="512" height="512" rx="112" fill="#161A19"/>
+  <g transform="translate(-22 14) scale(1)">
+    <polygon fill="#2FA37F" points="92.0,404.0 150.0,404.0 170.4,308.0 112.4,308.0"/>
+    <polygon fill="#4A7FCC" points="172.0,404.0 230.0,404.0 261.9,254.0 203.9,254.0"/>
+    <polygon fill="#E39A2B" points="252.0,404.0 310.0,404.0 353.4,200.0 295.4,200.0"/>
+    <polygon fill="#DE4450" points="332.0,404.0 390.0,404.0 444.8,146.0 386.8,146.0"/>
+    <line x1="415.8" y1="118.0" x2="415.8" y2="138.0" stroke="#ECEFED" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 11"/>
+    <circle cx="415.8" cy="80.0" r="30" fill="#ECEFED"/>
+    <circle cx="415.8" cy="80.0" r="12.6" fill="#161A19"/>
+  </g>
+</svg><span>Avinox Mode Planner</span></h1>
     <p>In alto i numeri da inserire nell'app Avinox per ogni modalità. Sotto, il giro diviso in tratti con la batteria prevista: dove la modalità giusta cambia nasce un waypoint da importare su Wikiloc e da seguire con l'Apple Watch.</p>
   </header>
 
@@ -344,7 +379,10 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
           <div class="slider"><input type="range" id="startPct" min="30" max="100" step="5" value="100"><output id="startOut" for="startPct">100%</output></div></div>
         <div class="field"><label for="reservePct">Batteria residua all'arrivo</label>
           <div class="slider"><input type="range" id="reservePct" min="0" max="60" step="5" value="15"><output id="reserveOut" for="reservePct">15%</output></div></div>
-        <div class="field"><label for="surface">Fondo prevalente</label><select id="surface"></select></div>
+        <div class="field"><label for="temperature">Temperatura prevista</label><select id="temperature"></select>
+          <span class="hint">Col freddo la batteria rende meno: la stima riduce la capacità in modo prudente.</span></div>
+        <div class="field"><label for="surface">Fondo prevalente</label><select id="surface"></select>
+          <div class="osm-row"><button type="button" class="btn" id="osmBtn">Leggi il fondo da OpenStreetMap</button><span class="hint" id="osmStatus"></span></div></div>
         <label class="check" for="adaptChk"><input type="checkbox" id="adaptChk" checked> <span id="adaptTxt">Se non basta, abbassa le modalità per arrivare con questa riserva</span></label>
       </fieldset>
 
@@ -389,6 +427,19 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
         <div class="manual" id="cueManual" hidden><textarea id="cueManualText" readonly aria-label="Testo da copiare"></textarea></div>
       </div>
     </div>
+
+    <div class="calib" id="calib">
+      <h3>Taratura dopo il giro</h3>
+      <p class="hint" style="font-size:14px">Hai fatto questo giro seguendo il piano qui sopra? Scrivi la batteria alla partenza e all'arrivo: la pagina confronta il consumo vero con la stima e corregge le prossime. I giri restano salvati solo in questo browser.</p>
+      <form class="calib-form" id="calibForm" autocomplete="off">
+        <div class="field"><label for="calStart">Partenza (%)</label><input type="number" id="calStart" min="1" max="100" step="1" value="100"></div>
+        <div class="field"><label for="calEnd">Arrivo (%)</label><input type="number" id="calEnd" min="0" max="100" step="1" placeholder="es. 34"></div>
+        <button type="submit" class="btn primary" id="calSave">Salva il giro</button>
+      </form>
+      <p class="hint" id="calMsg"></p>
+      <label class="check" for="calUse"><input type="checkbox" id="calUse" checked> <span id="calUseTxt">Usa la taratura nelle stime</span></label>
+      <ul class="rides" id="rides"></ul>
+    </div>
   </section>
 
   <section aria-labelledby="h-how">
@@ -397,7 +448,16 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
       <li><h3>Imposta le modalità</h3><p>Nell'app Avinox inserisci per ogni modalità livello, potenza e coppia della scheda. AUTO e TRAIL hanno un minimo e un massimo.</p></li>
       <li><h3>Importa su Wikiloc</h3><p>Scarica il file e importa il .gpx su Wikiloc (se arriva in uno zip, su iPhone si apre toccandolo nell'app File). Controlla che i waypoint compaiano lungo la traccia.</p></li>
       <li><h3>Prova corta</h3><p>Prima del giro vero fai un anello vicino casa con due waypoint e verifica che l'Apple Watch vibri quando ci passi. Wikiloc documenta l'avviso fuori traccia; quello sui waypoint va provato.</p></li>
-      <li><h3>In sella</h3><p>Parti nella modalità del waypoint START. Quando vibra, cambia col comando al manubrio e confronta la batteria con quella prevista nella lista. Sulle rampe brevi usa il Boost.</p></li>
+      <li><h3>In sella</h3><p>Parti nella modalità del waypoint START. Quando vibra, cambia col comando al manubrio e guarda la batteria: se è sotto la minima scritta nel waypoint, scendi di una modalità o passa a RISERVA. Sulle rampe brevi usa il Boost.</p></li>
+    </ol>
+  </section>
+
+  <section class="install" id="install" aria-labelledby="h-install">
+    <h2 id="h-install" style="font-size:22px;font-weight:600;text-transform:uppercase">Usala come app sull'iPhone</h2>
+    <ol>
+      <li>Apri <code>https://andicola.github.io/avinox-mode-planner/</code> con <b>Safari</b>.</li>
+      <li>Tocca <b>Condividi</b> (il quadrato con la freccia) e poi <b>Aggiungi alla schermata Home</b>.</li>
+      <li>Aprila dall'icona: si apre a tutto schermo e funziona anche senza rete. Serve la rete solo per leggere il fondo da OpenStreetMap.</li>
     </ol>
   </section>
 
@@ -407,6 +467,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
   </footer>
 </div>
 
+<script src="surface-osm.js"></script>
 <script src="planner.js"></script>
 <script>
 (function () {
@@ -425,9 +486,14 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 
   var state = {
     rider: { riderWeight: 82, bikeWeight: 24.2, battery: 'RS800', style: 'bilanciato', effort: 'normale', riderPower: 150, cadence: 80 },
-    route: { strategy: 'waypoint', maxWp: 25, mapping: Object.assign({}, DEFAULT_MAP), sens: 'media', lead: 100, boost: false, startPct: 100, reservePct: 15, surface: 'mixed', adapt: true },
-    modes: null, file: null, base: null, result: null, schemaText: ''
+    route: { strategy: 'waypoint', maxWp: 25, temperature: 'warm', useCal: true, mapping: Object.assign({}, DEFAULT_MAP), sens: 'media', lead: 100, boost: false, startPct: 100, reservePct: 15, surface: 'mixed', adapt: true },
+    modes: null, file: null, base: null, result: null, schemaText: '', osm: null, rides: []
   };
+  var RIDES_KEY = 'avinox-mode-planner-rides';
+  function loadRides() {
+    try { var a = JSON.parse(localStorage.getItem(RIDES_KEY) || '[]'); state.rides = Array.isArray(a) ? a : []; } catch (e) { state.rides = []; }
+  }
+  function saveRides() { try { localStorage.setItem(RIDES_KEY, JSON.stringify(state.rides)); } catch (e) { /* ignora */ } }
 
   function load() {
     try {
@@ -493,9 +559,19 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
         ' · ' + m.maxPower + ' W · ' + m.maxTorque + ' Nm · overrun ' + m.overrun + ' · avvio ' + m.start + ' · continuità ' + m.continued +
         (m.accel != null ? ' · accelerazione ' + m.accel : ''));
     });
+    var rv = res.reserve;
+    var rrow = el('div', 'mrow mode-reserve');
+    rrow.appendChild(el('div', 'mname', '<b>RISERVA</b><span>su misura</span>'));
+    rrow.appendChild(el('div', 'cell c1', '<span class="k">Livello</span><span class="v">' + rv.levelMin + '</span><span class="s">' + rv.pctMin + '%</span>'));
+    rrow.appendChild(el('div', 'cell', '<span class="k">Potenza max</span><span class="v">' + rv.maxPower + '<small>W</small></span><span class="s">' + rv.wkg.toFixed(2).replace('.', ',') + ' W/kg</span>'));
+    rrow.appendChild(el('div', 'cell', '<span class="k">Coppia max</span><span class="v">' + rv.maxTorque + '<small>Nm</small></span><span class="s">&nbsp;</span>'));
+    rrow.appendChild(el('div', 'dyn', '<span>Overrun <b>1</b></span><span>Avvio <b>1</b></span><span>Continuità <b>1</b></span><span>da creare nell\'app come modalità in più</span>'));
+    box.appendChild(rrow);
+    lines.push('RISERVA (personalizzata) livello ' + rv.levelMin + ' · ' + rv.maxPower + ' W · ' + rv.maxTorque + ' Nm · overrun 1 · avvio 1 · continuità 1');
     var full = r.battery === 'RS800';
     var foot = '<p class="boost">' + (full ? 'Boost <b>1500 W · 150 Nm</b> pieni con la RS800, durata standard 30 s (regolabile 1–60 s).'
       : 'Boost <b>1300 W · 150 Nm</b>: con la RS600 la potenza di picco resta a 1300 W.') + '</p>' +
+      '<p>RISERVA: aggiungila nell\'app come modalità personalizzata. Ti serve quando a un waypoint la batteria è sotto la minima indicata: aiuta poco e con dolcezza, per allungare l\'ultima parte del giro.</p>' +
       '<p>AUTO e TRAIL: imposta il livello minimo e il massimo. La % sotto il livello è quanto il motore aggiunge rispetto alla tua spinta (dato della community).</p>' +
       '<p>Nomi nell\'app in inglese: Overrun = Max Overrun, Avvio = Assist Start, Continuità = Continued Assist, Accelerazione = Max Acceleration (solo AUTO).</p>';
     res.warnings.filter(function (w) { return !(est && w.indexOf('120 W') >= 0); })
@@ -575,6 +651,13 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
       s.className = 'mode-' + s.value;
       s.addEventListener('change', function () { R.mapping[band] = s.value; s.className = 'mode-' + s.value; save(); replan(); });
     });
+    $('temperature').innerHTML = Object.keys(P.TEMPERATURES).map(function (k) { return '<option value="' + k + '">' + P.TEMPERATURES[k].label + '</option>'; }).join('');
+    $('temperature').value = R.temperature;
+    $('temperature').addEventListener('change', function () { R.temperature = $('temperature').value; save(); replan(); });
+    $('osmBtn').addEventListener('click', readOsm);
+    $('calibForm').addEventListener('submit', function (ev) { ev.preventDefault(); saveRide(); });
+    $('calUse').checked = !!R.useCal;
+    $('calUse').addEventListener('change', function () { R.useCal = $('calUse').checked; save(); replan(); renderCalib(); });
     $('surface').innerHTML = Object.keys(P.SURFACES).map(function (k) { return '<option value="' + k + '">' + P.SURFACES[k].label + '</option>'; }).join('');
     $('surface').value = R.surface;
     $('surface').addEventListener('change', function () { R.surface = $('surface').value; save(); replan(); });
@@ -608,6 +691,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
           var base = P.prepareRoute(parsed.points);
           state.file = { name: parsed.name, sample: false, filename: f.name };
           state.base = base;
+          state.osm = null;
           showError('');
           replan();
         } catch (err) { showError(err.message); }
@@ -623,7 +707,9 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     var r = state.rider, R = state.route;
     if (!modesRes) return null;
     return { modes: modesRes.modes, totalWeight: modesRes.totalWeight, riderW: riderPower(), rpm: riderCadence(), wkg: P.PRESETS[r.style].wkg,
-      batteryWh: BATTERY_WH[r.battery] || 800, startPct: R.startPct, reservePct: R.reservePct, surface: R.surface };
+      batteryWh: BATTERY_WH[r.battery] || 800, startPct: R.startPct, reservePct: R.reservePct, surface: R.surface,
+      temperature: R.temperature, personalFactor: R.useCal ? P.personalFactorFrom(state.rides).factor : 1,
+      surfaceSamples: state.osm && state.osm.base === state.base ? state.osm.samples : null };
   }
   function planOpts() {
     var R = state.route, sens = SENS[R.sens] || SENS.media;
@@ -637,6 +723,82 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
       ? P.autoPlan(state.base, { adapt: R.adapt, lead: R.lead, boost: R.boost, maxWaypoints: R.maxWp }, e)
       : P.plan(state.base, planOpts(), e);
     renderRoute();
+  }
+
+  /* ---------------- fondo da OpenStreetMap ---------------- */
+  function renderOsm() {
+    var btn = $('osmBtn'), st = $('osmStatus'), o = state.osm;
+    var sample = state.file && state.file.sample;
+    btn.disabled = !!sample || !window.AvinoxOsm || (o && o.loading);
+    if (sample) { st.textContent = 'Carica il tuo GPX per leggere il fondo.'; return; }
+    if (!o) { st.textContent = 'Invia a OpenStreetMap solo punti campionati della traccia, uno ogni 500 m.'; return; }
+    if (o.loading) { st.textContent = 'Lettura in corso…'; return; }
+    if (o.error) { st.textContent = o.error; return; }
+    var parts = Object.keys(o.mix).filter(function (k) { return o.mix[k] >= 5; })
+      .sort(function (a, b) { return o.mix[b] - o.mix[a]; })
+      .map(function (k) { return Math.round(o.mix[k]) + '% ' + P.VOICE_LABELS[k]; });
+    st.textContent = 'Fondo letto: ' + (parts.join(', ') || 'nessun dato utile') + ' (copertura ' + Math.round(o.coverage * 100) +
+      '%; dove manca vale il fondo prevalente).';
+  }
+  function readOsm() {
+    if (!state.base || !window.AvinoxOsm) return;
+    var base = state.base;
+    state.osm = { loading: true, base: base };
+    renderOsm();
+    var pts = base.points.map(function (p) { return { lat: p.lat, lon: p.lon, distanceKm: p.d / 1000 }; });
+    window.AvinoxOsm.fetchSurfaceMix(pts).then(function (res) {
+      if (state.base !== base) return;
+      if (!res.ok) {
+        var why = res.reason === 'network' ? 'OpenStreetMap non è raggiungibile da qui. Funziona dalla pagina su GitHub Pages o dall\'app installata.'
+          : res.reason === 'empty' ? 'OpenStreetMap non ha strade o sentieri lungo questa traccia.'
+          : 'OpenStreetMap non ha risposto (' + res.reason + '): riprova tra poco.';
+        state.osm = { base: base, error: why };
+      } else {
+        state.osm = { base: base, samples: res.samples, mix: res.mix, coverage: res.coverage };
+      }
+      renderOsm(); replan();
+    });
+  }
+
+  /* ---------------- taratura ---------------- */
+  function renderCalib() {
+    var list = $('rides'), R = state.route;
+    list.innerHTML = '';
+    var pf = P.personalFactorFrom(state.rides), range = P.FACTOR_RANGE;
+    state.rides.forEach(function (ride, i) {
+      var f = P.rideFactor(ride), ok = isFinite(f) && f >= range[0] && f <= range[1];
+      var li = el('li', '', '<span>' + esc(ride.date) + ' · ' + esc(ride.name) + '</span><span>' + n1(ride.km) + ' km · +' + Math.round(ride.gain) + ' m</span>' +
+        '<span>' + ride.startPct + '% → ' + ride.endPct + '%</span><span class="f' + (ok ? '' : ' out') + '" title="' + (ok ? 'Consumo vero / stima' : 'Fuori scala: non usato') + '">×' +
+        (isFinite(f) ? f.toFixed(2).replace('.', ',') : '—') + '</span>');
+      var del = el('button', 'btn', 'Elimina'); del.type = 'button';
+      del.addEventListener('click', function () { state.rides.splice(i, 1); saveRides(); renderCalib(); replan(); });
+      li.appendChild(del);
+      list.appendChild(li);
+    });
+    $('calUseTxt').textContent = pf.used ? 'Usa la taratura nelle stime: consumo ×' + pf.factor.toFixed(2).replace('.', ',') + ' (da ' + pf.used + (pf.used === 1 ? ' giro' : ' giri') + ')'
+      : 'Usa la taratura nelle stime (ancora nessun giro salvato)';
+    var sample = state.file && state.file.sample;
+    $('calSave').disabled = !!sample;
+    if (sample && !$('calMsg').dataset.keep) $('calMsg').textContent = 'Carica il GPX del giro che hai fatto per salvarlo.';
+  }
+  function saveRide() {
+    var r = state.result, msg = $('calMsg');
+    msg.dataset.keep = '1';
+    if (!r || !r.energy || state.file.sample) { msg.textContent = 'Carica il GPX del giro che hai fatto.'; return; }
+    var a = parseFloat($('calStart').value), b = parseFloat($('calEnd').value);
+    if (!(a > 0 && a <= 100 && b >= 0 && b < a)) { msg.textContent = 'Scrivi la batteria alla partenza e all\'arrivo, con l\'arrivo più basso della partenza.'; return; }
+    var ride = {
+      date: new Date().toLocaleDateString('it-IT'), name: state.file.name, km: r.total / 1000, gain: r.gain,
+      startPct: a, endPct: b, batteryWh: BATTERY_WH[state.rider.battery] || 800, temperature: state.route.temperature,
+      predictedWh: Math.round(r.energy.rawTotalWh), strategy: state.route.strategy
+    };
+    var f = P.rideFactor(ride), range = P.FACTOR_RANGE;
+    state.rides.push(ride); saveRides();
+    msg.textContent = (isFinite(f) && f >= range[0] && f <= range[1])
+      ? 'Salvato: hai consumato ' + (f >= 1 ? 'il ' + Math.round((f - 1) * 100) + '% in più' : 'il ' + Math.round((1 - f) * 100) + '% in meno') + ' della stima.'
+      : 'Salvato, ma il risultato è fuori scala (×' + (isFinite(f) ? f.toFixed(2) : '?') + '): non lo uso. Controlla i valori o che il giro sia questo.';
+    $('calEnd').value = '';
+    renderCalib(); replan();
   }
 
   function renderRoute() {
@@ -660,7 +822,10 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     else stat('Cambi', String(changes));
     stat('Waypoint', String(r.waypoints.length), r.cap && r.cap.limit && r.waypoints.length >= r.cap.limit ? 'bad' : '', r.cap && r.cap.limit ? 'max ' + r.cap.limit + ' per file' : '');
     if (en) {
-      stat('Consumo', Math.round(en.totalWh) + ' Wh', '', Math.round(en.low) + '–' + Math.round(en.high) + ' Wh');
+      stat('Consumo', Math.round(en.totalWh) + ' Wh', '', Math.round(en.low) + '–' + Math.round(en.high) + ' Wh' +
+        (en.personalFactor !== 1 ? ' · tarato ×' + en.personalFactor.toFixed(2).replace('.', ',') : ''));
+      stat('Parti con', en.needStartPct > 100 ? 'oltre 100%' : 'almeno ' + en.needStartPct + '%', en.needStartPct > 100 ? 'bad' : '',
+        en.needStartPrudentPct > 100 ? 'con margine: non basta' : 'con margine ' + en.needStartPrudentPct + '%');
       if (en.arrivalPct < 0) {
         var emptyAt = null;
         for (var pi = 0; pi < r.profile.length; pi++) { if (r.profile[pi].pct <= 0) { emptyAt = r.profile[pi].d; break; } }
@@ -685,6 +850,9 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 
     renderPlanNote();
     renderAutoCard();
+    renderOsm();
+    renderCalib();
+    if (!$('calStart').dataset.touched) $('calStart').value = state.route.startPct;
     drawChart(); drawShape(); renderCues();
   }
 
@@ -901,10 +1069,11 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     list.innerHTML = '';
     r.waypoints.forEach(function (w, i) {
       var li = el('li', 'cue mode-' + w.mode);
-      var rest = w.name.replace(/^START · /, '').replace(/^(ECO|AUTO|TRAIL|TURBO|BOOST)\s*(· )?/, '');
+      var rest = w.name.replace(/^START · /, '').replace(/^(ECO|AUTO|TRAIL|TURBO|BOOST)\s*(· )?/, '').replace(/ · min \d+%$/, '');
       var head = (w.kind === 'start' ? '<span class="tag" style="margin:0 6px 0 0">start</span>' : '') + '<b>' + LABEL[w.mode] + '</b><span class="rest">' + esc(rest) + '</span>';
-      var batt = w.battery != null ? '<i class="' + (en && w.battery < en.reservePct ? 'low' : '') + '">~' + Math.max(0, Math.round(w.battery)) + '%</i>' : '';
-      var desc = w.desc.replace(/^km [\d,]+: /, '').replace(/ Batteria prevista ~\d+%\./, '');
+      var batt = w.battery != null ? '<i class="' + (en && w.battery < en.reservePct ? 'low' : '') + '">~' + Math.max(0, Math.round(w.battery)) + '%</i>' +
+        (w.minBattery != null ? '<i>min ' + Math.max(0, Math.round(w.minBattery)) + '%</i>' : '') : '';
+      var desc = w.desc.replace(/^km [\d,]+: /, '').replace(/ Batteria prevista ~-?\d+%\. Se sei sotto il \d+%, passa a una modalità più bassa o a RISERVA\./, '');
       li.innerHTML = '<span class="n">' + (i + 1) + '</span><span class="km">km ' + P.fmtKm(w.dist) + batt + '</span><div class="t">' + head + '<p>' + esc(desc) + '</p></div>';
       li.addEventListener('mouseenter', function () { hot(i, true); });
       li.addEventListener('mouseleave', function () { hot(i, false); });
@@ -932,6 +1101,13 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 
   var downloads = null;
   var inViewer = !!(window.claude && typeof window.claude.use === 'function');
+  $('calStart').addEventListener('input', function () { $('calStart').dataset.touched = '1'; });
+  // app installata: niente istruzioni di installazione; fuori da claude.ai, lavoro offline col service worker
+  var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  if (standalone) $('install').hidden = true;
+  if (!inViewer && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () { /* resta online */ }); });
+  }
   function setStatus(t) { $('dlStatus').textContent = t; }
   if (inViewer) {
     window.claude.use('downloads').then(function (ns) {
@@ -969,6 +1145,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 
   /* ---------------- avvio ---------------- */
   load();
+  loadRides();
   bindRider();
   bindRoute();
   renderSchema();

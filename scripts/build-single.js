@@ -1,17 +1,20 @@
 'use strict';
-/* Crea dist/avinox-mode-planner.html: la pagina con planner.js incorporato,
+/* Crea dist/avinox-mode-planner.html: la pagina con gli script locali incorporati,
    da aprire offline o da caricare dove serve un unico file. */
 const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
-const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const js = fs.readFileSync(path.join(root, 'planner.js'), 'utf8');
-const tag = '<script src="planner.js"></script>';
-if (!html.includes(tag)) throw new Error('index.html non contiene ' + tag);
+const source = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+let count = 0;
+// replace con una funzione: così i "$" dentro il codice incorporato restano come sono
+const html = source.replace(/<script src="([\w.-]+\.js)"><\/script>/g, (tag, file) => {
+    count++;
+    return '<script>\n' + fs.readFileSync(path.join(root, file), 'utf8') + '\n</script>';
+});
+if (!count) throw new Error('index.html non contiene script locali da incorporare');
 
-const out = html.replace(tag, () => '<script>\n' + js + '\n</script>');
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 const file = path.join(root, 'dist', 'avinox-mode-planner.html');
-fs.writeFileSync(file, out);
-console.log('Scritto ' + path.relative(root, file) + ' (' + Math.round(out.length / 1024) + ' KB)');
+fs.writeFileSync(file, html);
+console.log('Scritto ' + path.relative(root, file) + ' (' + count + ' script, ' + Math.round(html.length / 1024) + ' KB)');

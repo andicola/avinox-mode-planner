@@ -141,3 +141,48 @@ test('rispetta il limite di waypoint di Wikiloc', () => {
   const tight = P.plan(base, Object.assign({}, many, { maxWaypoints: 5 }), null);
   assert.ok(tight.waypoints.length <= 5);
 });
+
+test('batteria minima, carica consigliata, freddo e taratura', () => {
+  const base = P.prepareRoute(P.sampleRoute().points);
+  const modes = P.calcModes({ riderWeight: 87, bikeWeight: 24.2, cadence: 80, riderPower: 140, wkg: BAL });
+  const e = (extra) => Object.assign(energyFor(modes, { riderW: 140, rpm: 80 }), extra || {});
+  const r = P.plan(base, OPTS, e());
+  const en = r.energy;
+
+  // la minima per finire scende lungo il giro e all'arrivo vale la riserva
+  assert.ok(Math.abs(en.minPctAt(base.total) - en.reservePct) < 0.5);
+  assert.ok(en.minPctAt(0) > en.minPctAt(base.total / 2));
+  assert.ok(en.needStartPct % 5 === 0 && en.needStartPct >= en.minPctAt(0));
+  assert.ok(en.needStartPrudentPct >= en.needStartPct);
+  assert.match(r.waypoints[1].name, / · min \d+%$/);
+
+  // col freddo si arriva più scarichi
+  const cold = P.plan(base, Object.assign({}, OPTS, { adapt: false }), e({ temperature: 'frost' }));
+  assert.ok(cold.energy.arrivalPct < en.arrivalPct);
+
+  // il fattore personale scala i Wh
+  const heavy = P.plan(base, Object.assign({}, OPTS, { adapt: false }), e({ personalFactor: 1.2 }));
+  assert.ok(Math.abs(heavy.energy.totalWh / en.totalWh - 1.2) < 0.01);
+  assert.ok(Math.abs(heavy.energy.rawTotalWh - en.totalWh) < 0.5);
+
+  // fondo da OSM: tutto asfalto consuma meno del misto
+  const road = P.plan(base, Object.assign({}, OPTS, { adapt: false }), e({ surfaceSamples: [{ km: 0, voice: 'tarmac' }, { km: 100, voice: 'tarmac' }] }));
+  assert.ok(road.energy.totalWh < en.totalWh);
+});
+
+test('fattore personale: mediana dei giri plausibili', () => {
+  const ride = (endPct, predictedWh) => ({ startPct: 100, endPct, batteryWh: 800, temperature: 'warm', predictedWh });
+  assert.ok(Math.abs(P.rideFactor(ride(50, 400)) - 1) < 1e-9);
+  const f = P.personalFactorFrom([ride(50, 400), ride(40, 400), ride(55, 400), ride(98, 400)]);
+  assert.equal(f.used, 3);
+  assert.equal(f.rejected, 1);
+  assert.ok(Math.abs(f.factor - 1) < 1e-9);
+  assert.equal(P.personalFactorFrom([]).factor, 1);
+});
+
+test('modalità RISERVA sotto ECO', () => {
+  const m = P.calcModes({ riderWeight: 87, bikeWeight: 24.2, cadence: 80, riderPower: 140, wkg: BAL });
+  assert.ok(m.reserve.levelMin <= m.modes.eco.levelMin);
+  assert.ok(m.reserve.maxPower <= m.modes.eco.maxPower);
+  assert.equal(m.reserve.maxPower % 50, 0);
+});

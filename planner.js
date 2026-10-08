@@ -103,7 +103,17 @@
             warnings.push('Con una potenza tua sotto i 120 W i livelli escono alti. Se il valore è la media dell\'app su tutto il giro, ' +
                 'include discese e soste: la potenza mentre pedali è più alta.');
         }
-        return { modes: out, totalWeight: total, warnings: warnings };
+        // RISERVA: modalità personalizzata (livello fisso) per allungare l'ultima parte del giro,
+        // come la "ROUTE RESERVE" proposta dal calcolatore originale (1,10 W/kg, rampa morbida).
+        var resPower = snap(clamp(Math.round(total * 1.10), 100, BIKE.maxPower), 50, 100, BIKE.maxPower);
+        var resLevel = Math.min(nearestLevel(resPower / pRider, 1, 15), ecoLevel);
+        var reserve = {
+            key: 'reserve', label: 'RISERVA', type: 'fixed', levelMin: resLevel, levelMax: resLevel,
+            pctMin: Math.round(ASSIST[resLevel] * 100), pctMax: Math.round(ASSIST[resLevel] * 100),
+            maxPower: resPower, maxTorque: snap(Math.round((resPower * 9.55) / Math.min(rpm, CLIMB_RPM)), 5, 5, BIKE.maxTorque),
+            overrun: 1, start: 1, continued: 1, accel: null, wkg: resPower / total, warnings: []
+        };
+        return { modes: out, reserve: reserve, totalWeight: total, warnings: warnings };
     };
 
     /* ======================= PERCORSO ======================= */
@@ -342,6 +352,50 @@
         technical: { label: 'Tecnico: roccia e radici', factor: 1.35, torque: 0.85, soft: true },
         mud:       { label: 'Fango o sabbia', factor: 1.55, torque: 0.95, soft: true }
     };
+    /* Le sei voci di fondo del calcolatore originale: [consumo, coppia]. */
+    var VOICE_FACTORS = {
+        tarmac: [1.00, 1.15], compacted: [1.12, 1.05], hardpack: [1.18, 1.00],
+        mixed: [1.22, 0.90], rock: [1.35, 0.85], mud: [1.55, 0.95]
+    };
+    var VOICE_LABELS = {
+        tarmac: 'asfalto', compacted: 'sterrato compatto', hardpack: 'terra battuta',
+        mixed: 'sassi e radici', rock: 'roccia', mud: 'fango o sabbia'
+    };
+    /* Capacità utilizzabile col freddo: stime prudenti, non dati DJI. */
+    var TEMPERATURES = {
+        warm: { label: 'Sopra 15 °C', factor: 1.00 },
+        mild: { label: 'Tra 5 e 15 °C', factor: 0.95 },
+        cold: { label: 'Tra 0 e 5 °C', factor: 0.88 },
+        frost: { label: 'Sotto 0 °C', factor: 0.80 }
+    };
+
+    /**
+     * Fattori di fondo campione per campione. Con i dati di OpenStreetMap
+     * (e.surfaceSamples: [{km, voice}] ogni ~500 m) ogni campione prende la voce
+     * del punto OSM più vicino; dove OSM non dice nulla vale il fondo scelto.
+     */
+    function surfaceProfile(base, e) {
+        if (e._surf && e._surf.base === base) return e._surf;
+        var def = SURFACES[e.surface] || SURFACES.mixed;
+        var smp = Array.isArray(e.surfaceSamples) && e.surfaceSamples.length ? e.surfaceSamples : null;
+        var sf = new Array(base.N), tf = new Array(base.N), j = 0, known = 0, torqueSum = 0, soft = 0;
+        for (var k = 0; k < base.N; k++) {
+            var voice = null;
+            if (smp) {
+                var d = k * STEP;
+                while (j + 1 < smp.length && Math.abs(smp[j + 1].km * 1000 - d) <= Math.abs(smp[j].km * 1000 - d)) j++;
+                voice = smp[j].voice;
+            }
+            if (voice && VOICE_FACTORS[voice]) {
+                sf[k] = VOICE_FACTORS[voice][0]; tf[k] = VOICE_FACTORS[voice][1]; known++;
+                if (voice === 'rock' || voice === 'mud') soft++;
+            } else { sf[k] = def.factor; tf[k] = def.torque; if (def.soft) soft++; }
+            torqueSum += tf[k];
+        }
+        e._surf = { base: base, sf: sf, tf: tf, meanTorque: torqueSum / base.N, knownShare: known / base.N, softShare: soft / base.N, fromOsm: !!smp };
+        return e._surf;
+    }
+
     function modeMixFor(c) {
         c = clamp(c, 0, 1); var f = 1 - c;
         return { eco: 0.40 * f + 0.15 * c, auto: 0.50 * f + 0.45 * c, trail: 0.10 * f + 0.32 * c, turbo: 0.08 * c };
@@ -371,12 +425,12 @@
 
     /** Wh cumulati campione per campione e batteria prevista lungo il giro. */
     function energyOf(base, runs, e) {
-        var sh = shares(e), sf = (SURFACES[e.surface] || SURFACES.mixed).factor;
+        var sh = shares(e);
         var cW = (CLIMB_WH_PER_M_PER_100KG * e.totalWeight) / 100;
         var factor = new Array(base.N);
         runs.forEach(function (r) {
             var anchor = anchorOf(r, sh, cW);
-            r.whFactor = anchor > 0 ? (sf * sh.mine[r.mode]) / anchor : sf;
+            r.whFactor = anchor > 0 ? sh.mine[r.mode] / anchor : 1;
             for (var i = r.i0; i <= r.i1; i++) factor[i] = r.whFactor;
         });
         var en = energyFromFactors(base, e, factor);
@@ -384,27 +438,40 @@
         return en;
     }
 
-    /** factor[k] = fondo × quota motore / riferimento per il campione k. */
+    /**
+     * factor[k] = quota motore / riferimento per il campione k. Qui si aggiungono
+     * il fondo (per campione), il fattore personale della taratura e il freddo.
+     */
     function energyFromFactors(base, e, factor) {
         var cW = (CLIMB_WH_PER_M_PER_100KG * e.totalWeight) / 100;
+        var sf = surfaceProfile(base, e).sf;
+        var personal = e.personalFactor > 0 ? e.personalFactor : 1;
         var cum = new Array(base.N); cum[0] = 0;
         for (var k = 1; k < base.N; k++) {
             var dz = base.es[k] - base.es[k - 1];
-            var wh = ((STEP / 1000) * FLAT_WH_PER_KM + Math.max(dz, 0) * cW) * (base.g[k] >= 12 ? 1 + STEEP_PENALTY : 1) * factor[k];
+            var wh = ((STEP / 1000) * FLAT_WH_PER_KM + Math.max(dz, 0) * cW) * (base.g[k] >= 12 ? 1 + STEEP_PENALTY : 1) * factor[k] * sf[k] * personal;
             cum[k] = cum[k - 1] + wh;
         }
         var totalWh = cum[base.N - 1];
-        var pctPerWh = 100 / e.batteryWh;
+        var effWh = e.batteryWh * ((TEMPERATURES[e.temperature] || TEMPERATURES.warm).factor);
+        var pctPerWh = 100 / effWh;
         var arrival = e.startPct - totalWh * pctPerWh;
+        var ceil5 = function (x) { return Math.ceil(x / 5) * 5; };
         return {
-            cum: cum, totalWh: totalWh, low: totalWh * (1 - MARGIN), high: totalWh * (1 + MARGIN),
-            batteryWh: e.batteryWh, startPct: e.startPct, reservePct: e.reservePct,
-            usableWh: (e.batteryWh * (e.startPct - e.reservePct)) / 100,
+            cum: cum, totalWh: totalWh, rawTotalWh: totalWh / personal, personalFactor: personal,
+            low: totalWh * (1 - MARGIN), high: totalWh * (1 + MARGIN),
+            batteryWh: e.batteryWh, effectiveWh: effWh, startPct: e.startPct, reservePct: e.reservePct,
+            usableWh: (effWh * (e.startPct - e.reservePct)) / 100,
             arrivalPct: arrival,
             arrivalBest: e.startPct - totalWh * (1 - MARGIN) * pctPerWh,
             arrivalWorst: e.startPct - totalWh * (1 + MARGIN) * pctPerWh,
             fits: arrival >= e.reservePct,
-            pctAt: function (d) { return e.startPct - cum[idxOf(base, d)] * pctPerWh; }
+            // carica che serve alla partenza per arrivare con la riserva (stima e con il margine)
+            needStartPct: ceil5(e.reservePct + totalWh * pctPerWh),
+            needStartPrudentPct: ceil5(e.reservePct + totalWh * (1 + MARGIN) * pctPerWh),
+            pctAt: function (d) { return e.startPct - cum[idxOf(base, d)] * pctPerWh; },
+            // carica minima in quel punto per finire il giro con la riserva
+            minPctAt: function (d) { return e.reservePct + (totalWh - cum[idxOf(base, d)]) * pctPerWh; }
         };
     }
 
@@ -421,7 +488,12 @@
 
     function buildWaypoints(base, runs, mapping, opts, energy, maxBoost) {
         var pts = base.points, g = base.g, N = base.N, lead = opts.lead, wps = [], lastD = -Infinity, k;
-        var batt = function (d) { return energy ? ' Batteria prevista ~' + Math.round(energy.pctAt(d)) + '%.' : ''; };
+        var batt = function (d) {
+            if (!energy) return '';
+            var min = Math.max(0, Math.round(energy.minPctAt(d)));
+            return ' Batteria prevista ~' + Math.round(energy.pctAt(d)) + '%. Se sei sotto il ' + min + '%, passa a una modalità più bassa o a RISERVA.';
+        };
+        var minTxt = function (d) { return energy ? ' · min ' + Math.max(0, Math.round(energy.minPctAt(d))) + '%' : ''; };
         runs.forEach(function (r, i) {
             var kind = i === 0 ? 'start' : (RANK[r.mode] > RANK[runs[i - 1].mode] ? 'up' : 'down');
             var d = kind === 'up' ? r.start - lead : r.start;
@@ -431,8 +503,8 @@
             var gainTxt = r.gain >= 20 ? ' +' + Math.round(r.gain) + ' m' : '';
             wps.push({
                 kind: kind, mode: r.mode, dist: d, changeAt: r.start, lat: p.lat, lon: p.lon, ele: p.ele, run: r,
-                battery: energy ? energy.pctAt(d) : null,
-                name: (kind === 'start' ? 'START · ' : '') + BP[r.mode].label + ' · ' + fmtKm(r.length) + ' km' + gainTxt,
+                battery: energy ? energy.pctAt(d) : null, minBattery: energy ? energy.minPctAt(d) : null,
+                name: (kind === 'start' ? 'START · ' : '') + BP[r.mode].label + ' · ' + fmtKm(r.length) + ' km' + gainTxt + minTxt(d),
                 desc: 'km ' + fmtKm(d) + ': passa a ' + BP[r.mode].label + ' per ' + fmtKm(r.length) + ' km' +
                     (r.gain >= 20 ? ', D+ ' + Math.round(r.gain) + ' m' : '') +
                     (r.maxGrade >= 3 ? ', pendenza max ' + Math.round(r.maxGrade) + '%' : '') + '.' + batt(d)
@@ -472,7 +544,7 @@
                 var p = positionAt(pts, d);
                 wps.push({
                     kind: 'boost', mode: 'boost', dist: d, changeAt: rp.start, lat: p.lat, lon: p.lon, ele: p.ele, run: null,
-                    battery: energy ? energy.pctAt(d) : null,
+                    battery: energy ? energy.pctAt(d) : null, minBattery: energy ? energy.minPctAt(d) : null,
                     name: 'BOOST · rampa ' + lenTxt + ' al ' + Math.round(rp.maxGrade) + '%',
                     desc: 'km ' + fmtKm(d) + ': rampa breve di ' + lenTxt + ', pendenza max ' + Math.round(rp.maxGrade) +
                         '%. Usa il Boost senza cambiare modalità.' + batt(d)
@@ -564,17 +636,18 @@
         climbs.sort(function (a, b) { return a - b; });
         var p90 = quantile(climbs, 0.9), gMax = Math.max.apply(null, g), steepShare = steepCount / N;
         var surface = SURFACES[e.surface] || SURFACES.mixed;
+        var surf = surfaceProfile(base, e);
         var tuned = e.modes.auto;
         var W = e.totalWeight, rider = e.riderW, rpm = e.rpm;
         var gTop = Math.max(8, p90);
 
         var wkgTop = lerpPoints(p90, [[6, e.wkg[1]], [10, e.wkg[2]], [15, e.wkg[3]]]);
         var targetPower = clamp(Math.round(W * wkgTop), BP.auto.minPower, BIKE.maxPower);
-        var soft = !!surface.soft || steepShare >= 0.12;
+        var soft = surf.softShare >= 0.25 || steepShare >= 0.12;
 
         function setting(lo, hi, power) {
             var maxPower = snap(power, 50, BP.auto.minPower, BIKE.maxPower);
-            var torque = snap(Math.round(((maxPower * 9.55) / Math.min(rpm, 60)) * surface.torque), 5, 5, BIKE.maxTorque);
+            var torque = snap(Math.round(((maxPower * 9.55) / Math.min(rpm, 60)) * surf.meanTorque), 5, 5, BIKE.maxTorque);
             return {
                 levelMin: lo, levelMax: hi, pctMin: Math.round(ASSIST[lo] * 100), pctMax: Math.round(ASSIST[hi] * 100),
                 maxPower: maxPower, maxTorque: torque,
@@ -583,7 +656,7 @@
         }
 
         // riferimento del modello per tratti di terreno omogeneo
-        var sh = shares(e), cW = (CLIMB_WH_PER_M_PER_100KG * e.totalWeight) / 100, sf = surface.factor;
+        var sh = shares(e), cW = (CLIMB_WH_PER_M_PER_100KG * e.totalWeight) / 100;
         var refRuns = segment(base, { flat: 'eco', rolling: 'auto', climb: 'trail', steep: 'turbo', extreme: 'turbo' }, 800, 400);
         var anchor = new Array(N);
         refRuns.forEach(function (r) { var a = anchorOf(r, sh, cW); for (var i = r.i0; i <= r.i1; i++) anchor[i] = a; });
@@ -595,7 +668,7 @@
                 var t = clamp((g[i] - 2) / (gTop - 2), 0, 1);
                 var w = Math.min(st.maxPower, torqueCeil, (lo + t * (hi - lo)) * rider);
                 var shareI = motorShare(w, rider);
-                factor[i] = anchor[i] > 0 ? (sf * shareI) / anchor[i] : sf;
+                factor[i] = anchor[i] > 0 ? shareI / anchor[i] : 1;
             }
             return energyFromFactors(base, e, factor);
         }
@@ -625,9 +698,9 @@
         var startWp = wp.waypoints.filter(function (w) { return w.kind === 'start'; })[0];
         if (startWp) {
             var after = startWp.desc.indexOf(' Subito dopo:') >= 0 ? startWp.desc.slice(startWp.desc.indexOf(' Subito dopo:')) : '';
-            startWp.name = 'START · AUTO ' + current.levelMin + '–' + current.levelMax + ' · ' + current.maxPower + ' W';
+            startWp.name = 'START · AUTO ' + current.levelMin + '–' + current.levelMax + ' · ' + current.maxPower + ' W · min ' + energy.needStartPct + '%';
             startWp.desc = 'km 0,0: tutto il giro in AUTO, livelli ' + current.levelMin + '–' + current.levelMax + ', potenza max ' +
-                current.maxPower + ' W, coppia max ' + current.maxTorque + ' Nm.' + after;
+                current.maxPower + ' W, coppia max ' + current.maxTorque + ' Nm. Parti con almeno il ' + energy.needStartPct + '%.' + after;
         }
         var profile = [];
         for (k = 0; k < N; k += base.stride) profile.push({ d: k * STEP, ele: base.es[k], pct: e.startPct - energy.cum[k] * 100 / e.batteryWh });
@@ -643,9 +716,32 @@
             auto: {
                 setting: current, proposed: proposed, tuned: tunedSetting, tunedEnergy: simulate(tunedSetting),
                 adapted: steps.length > 0, p90: p90, gMax: gMax, steepShare: steepShare, soft: soft,
-                surface: surface, targetPower: targetPower, levelCapped: nearestLevel(targetPower / rider, 3, 15) > 11
+                surface: surface, surfaceTorque: surf.meanTorque, surfaceFromOsm: surf.fromOsm, targetPower: targetPower, levelCapped: nearestLevel(targetPower / rider, 3, 15) > 11
             }
         };
+    };
+
+    /* ---------------- taratura con i giri reali ---------------- */
+    var FACTOR_MIN = 0.5, FACTOR_MAX = 1.5;
+
+    /** Fattore di un giro: Wh consumati davvero / Wh previsti dal modello senza taratura. */
+    L.rideFactor = function (ride) {
+        var measured = ((ride.startPct - ride.endPct) / 100) * ride.batteryWh * ((TEMPERATURES[ride.temperature] || TEMPERATURES.warm).factor);
+        return ride.predictedWh > 0 ? measured / ride.predictedWh : NaN;
+    };
+
+    /** Mediana dei fattori plausibili (0,5–1,5): un giro anomalo non sposta tutto. */
+    L.personalFactorFrom = function (rides) {
+        var ok = [], rejected = 0;
+        (rides || []).forEach(function (r) {
+            var f = L.rideFactor(r);
+            if (isFinite(f) && f >= FACTOR_MIN && f <= FACTOR_MAX) ok.push(f); else rejected++;
+        });
+        if (!ok.length) return { factor: 1, used: 0, rejected: rejected };
+        ok.sort(function (a, b) { return a - b; });
+        var mid = ok.length >> 1;
+        var factor = ok.length % 2 ? ok[mid] : (ok[mid - 1] + ok[mid]) / 2;
+        return { factor: factor, used: ok.length, rejected: rejected };
     };
 
     function xml(s) {
@@ -675,7 +771,7 @@
         if (en) head += ' · arrivo stimato ~' + Math.round(en.arrivalPct) + '% (riserva ' + en.reservePct + '%)';
         var lines = [head];
         result.waypoints.forEach(function (w) {
-            lines.push('km ' + fmtKm(w.dist).padStart(5, ' ') + '  ' + w.name + (w.battery != null ? '  (~' + Math.round(w.battery) + '%)' : ''));
+            lines.push('km ' + fmtKm(w.dist).padStart(5, ' ') + '  ' + w.name + (w.battery != null ? '  (prevista ~' + Math.round(w.battery) + '%)' : ''));
         });
         return lines.join('\n');
     };
@@ -754,6 +850,6 @@
         return { name: 'Anello di esempio', points: pts };
     };
 
-    L.positionAt = positionAt; L.SURFACES = SURFACES; L.BAND_ORDER = BAND_ORDER; L.BANDS = BANDS; L.BP = BP; L.MODE_KEYS = MODE_KEYS; L.PRESETS = PRESETS; L.RANK = RANK; L.fmtKm = fmtKm;
+    L.positionAt = positionAt; L.SURFACES = SURFACES; L.TEMPERATURES = TEMPERATURES; L.VOICE_LABELS = VOICE_LABELS; L.FACTOR_RANGE = [FACTOR_MIN, FACTOR_MAX]; L.BAND_ORDER = BAND_ORDER; L.BANDS = BANDS; L.BP = BP; L.MODE_KEYS = MODE_KEYS; L.PRESETS = PRESETS; L.RANK = RANK; L.fmtKm = fmtKm;
     if (typeof module !== 'undefined' && module.exports) module.exports = L; else root.AvinoxPlanner = L;
 })(this);
