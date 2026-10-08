@@ -89,6 +89,12 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 .seg button { border: 0; background: var(--bg); padding: 8px 4px; font-size: 14px; font-weight: 600; cursor: pointer; border-right: 1px solid var(--line); }
 .seg button:last-child { border-right: 0; }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.seg.four { grid-template-columns: repeat(4, 1fr); }
+.effort-est { font-family: var(--f-data); font-size: 12.5px; color: var(--ink); }
+.manual-in { display: grid; gap: 8px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 5px; }
+.why { font-size: 13.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+.why summary { cursor: pointer; font-weight: 600; color: var(--ink); }
+.why ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; }
 
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 5px; border: 1px solid var(--ink); background: transparent; font-weight: 600; font-size: 14.5px; cursor: pointer; }
 .btn:hover { background: var(--soft); }
@@ -230,13 +236,26 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
           <div class="field"><label for="riderWeight">Tu, con attrezzatura (kg)</label><input type="number" id="riderWeight" min="30" max="200" step="0.5" value="82"></div>
           <div class="field"><label for="bikeWeight">Bici (kg)</label><input type="number" id="bikeWeight" min="10" max="40" step="0.1" value="24.2"></div>
         </div>
-        <div class="row2">
-          <div class="field"><label for="cadence">Cadenza (rpm)</label><input type="number" id="cadence" min="20" max="140" step="1" value="75"></div>
-          <div class="field"><label for="riderPower">Tua potenza (W)</label><input type="number" id="riderPower" min="20" max="600" step="5" value="200"></div>
-        </div>
         <div class="field">
           <label for="battery">Batteria</label>
           <select id="battery"><option value="RS800">RS800 · 800 Wh</option><option value="RS600">RS600 · 600 Wh</option></select>
+        </div>
+        <div class="field">
+          <span class="lbl" id="effortLbl">Quanto spingi sui pedali in salita</span>
+          <div class="seg four" role="group" aria-labelledby="effortLbl" id="effortSeg">
+            <button type="button" data-effort="poco" aria-pressed="false">Poco</button>
+            <button type="button" data-effort="normale" aria-pressed="true">Normale</button>
+            <button type="button" data-effort="tanto" aria-pressed="false">Tanto</button>
+            <button type="button" data-effort="manuale" aria-pressed="false">Lo so</button>
+          </div>
+          <span class="effort-est" id="effortEst"></span>
+          <div class="manual-in" id="manualIn" hidden>
+            <div class="row2">
+              <div class="field"><label for="riderPower">Tua potenza (W)</label><input type="number" id="riderPower" min="20" max="600" step="5" value="150"></div>
+              <div class="field"><label for="cadence">Cadenza (rpm)</label><input type="number" id="cadence" min="20" max="140" step="1" value="80"></div>
+            </div>
+            <span class="hint">La potenza del ciclista mentre spingi su una salita regolare, non la media del giro con discese e soste.</span>
+          </div>
         </div>
         <div class="field">
           <span class="lbl" id="styleLbl">Stile</span>
@@ -247,7 +266,16 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
           </div>
           <span class="hint" id="styleHint"></span>
         </div>
-        <p class="hint">Potenza: quella che fai mentre pedali, non la media del giro con le discese.</p>
+        <details class="why">
+          <summary>Non conosci potenza e cadenza?</summary>
+          <ul>
+            <li>Il livello di assistenza moltiplica la tua spinta: chi spinge meno ha bisogno di un livello più alto per avere lo stesso aiuto. Per questo serve sapere quanto spingi.</li>
+            <li>Se non lo sai, scegli Poco, Normale o Tanto: la pagina stima la potenza dal tuo peso (1,2, 1,6 o 2,2 W per kg).</li>
+            <li>La cadenza conta poco: tra 60 e 100 rpm lo schema non cambia. Con le stime la pagina usa 80 rpm.</li>
+            <li>Per misurarle: dall'app Avinox puoi scegliere i dati mostrati sul display. Se ci sono potenza del ciclista e cadenza, guardale dopo un paio di minuti di salita regolare e inseriscile con "Lo so".</li>
+            <li>Dopo il primo giro: se l'assistenza ti sembra troppa, scegli una spinta più alta e i livelli scendono; se ti sembra poca, una più bassa.</li>
+          </ul>
+        </details>
       </form>
 
       <div class="sheet">
@@ -367,9 +395,12 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
   var DEFAULT_MAP = { flat: 'eco', rolling: 'auto', climb: 'trail', steep: 'turbo', extreme: 'turbo' };
   var BATTERY_WH = { RS800: 800, RS600: 600 };
   var STORE_KEY = 'avinox-mode-planner-v1';
+  /* Spinta stimata dal peso del ciclista quando potenza e cadenza non sono note. */
+  var EFFORT = { poco: { wkg: 1.2, label: 'Poco' }, normale: { wkg: 1.6, label: 'Normale' }, tanto: { wkg: 2.2, label: 'Tanto' } };
+  var EST_CADENCE = 80;
 
   var state = {
-    rider: { riderWeight: 82, bikeWeight: 24.2, cadence: 75, riderPower: 200, battery: 'RS800', style: 'bilanciato' },
+    rider: { riderWeight: 82, bikeWeight: 24.2, battery: 'RS800', style: 'bilanciato', effort: 'normale', riderPower: 150, cadence: 80 },
     route: { mapping: Object.assign({}, DEFAULT_MAP), sens: 'media', lead: 100, boost: false, startPct: 100, reservePct: 15, surface: 'mixed', adapt: true },
     modes: null, file: null, base: null, result: null, schemaText: ''
   };
@@ -379,7 +410,11 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
       var raw = localStorage.getItem(STORE_KEY);
       if (!raw) return;
       var s = JSON.parse(raw);
-      if (s.rider) Object.assign(state.rider, s.rider);
+      if (s.rider) {
+        // salvataggi precedenti senza "effort": avevano potenza e cadenza scritte a mano
+        if (!s.rider.effort && s.rider.riderPower) s.rider.effort = 'manuale';
+        Object.assign(state.rider, s.rider);
+      }
       if (s.route) { Object.assign(state.route, s.route); state.route.mapping = Object.assign({}, DEFAULT_MAP, s.route.mapping || {}); }
     } catch (e) { /* memoria del browser non disponibile */ }
   }
@@ -391,9 +426,14 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
   function n1(x) { return (Math.round(x * 10) / 10).toLocaleString('it-IT'); }
 
   /* ---------------- schema ---------------- */
+  function riderPower() {
+    var r = state.rider, e = EFFORT[r.effort];
+    return e ? Math.max(40, Math.round((e.wkg * r.riderWeight) / 5) * 5) : r.riderPower;
+  }
+  function riderCadence() { return EFFORT[state.rider.effort] ? EST_CADENCE : state.rider.cadence; }
   function modesFor(style) {
     var r = state.rider;
-    return P.calcModes({ riderWeight: r.riderWeight, bikeWeight: r.bikeWeight, cadence: r.cadence, riderPower: r.riderPower, wkg: P.PRESETS[style].wkg });
+    return P.calcModes({ riderWeight: r.riderWeight, bikeWeight: r.bikeWeight, cadence: riderCadence(), riderPower: riderPower(), wkg: P.PRESETS[style].wkg });
   }
 
   function renderSchema() {
@@ -407,8 +447,11 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
       $('sheetFoot').innerHTML = ''; $('sheetMeta').textContent = ''; state.schemaText = '';
       return;
     }
-    $('sheetMeta').textContent = 'Sistema ' + n1(res.totalWeight) + ' kg · ' + r.riderPower + ' W · ' + r.cadence + ' rpm · ' + P.PRESETS[r.style].label;
-    var lines = ['Avinox M2S – schema modalità (' + n1(res.totalWeight) + ' kg, ' + r.riderPower + ' W, ' + r.cadence + ' rpm, ' + P.PRESETS[r.style].label + ')'];
+    var est = EFFORT[r.effort];
+    var pw = riderPower(), cad = riderCadence();
+    var who = est ? 'spinta ~' + pw + ' W (stima ' + est.label + ')' : pw + ' W · ' + cad + ' rpm';
+    $('sheetMeta').textContent = 'Sistema ' + n1(res.totalWeight) + ' kg · ' + who + ' · ' + P.PRESETS[r.style].label;
+    var lines = ['Avinox M2S – schema modalità (' + n1(res.totalWeight) + ' kg, ' + who + ', ' + P.PRESETS[r.style].label + ')'];
     P.MODE_KEYS.forEach(function (k) {
       var m = res.modes[k];
       var range = m.levelMin !== m.levelMax;
@@ -431,7 +474,8 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
       : 'Boost <b>1300 W · 150 Nm</b>: con la RS600 la potenza di picco resta a 1300 W.') + '</p>' +
       '<p>AUTO e TRAIL: imposta il livello minimo e il massimo. La % sotto il livello è quanto il motore aggiunge rispetto alla tua spinta (dato della community).</p>' +
       '<p>Nomi nell\'app in inglese: Overrun = Max Overrun, Avvio = Assist Start, Continuità = Continued Assist, Accelerazione = Max Acceleration (solo AUTO).</p>';
-    res.warnings.forEach(function (w) { foot += '<p class="callout">' + esc(w) + '</p>'; });
+    res.warnings.filter(function (w) { return !(est && w.indexOf('120 W') >= 0); })
+      .forEach(function (w) { foot += '<p class="callout">' + esc(w) + '</p>'; });
     $('sheetFoot').innerHTML = foot;
     lines.push(full ? 'Boost 1500 W / 150 Nm (RS800), 30 s' : 'Boost 1300 W / 150 Nm (RS600), 30 s');
     state.schemaText = lines.join('\n');
@@ -440,12 +484,28 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 
   function onRiderChange() { save(); renderSchema(); replan(); }
 
+  function renderEffort() {
+    var r = state.rider, est = EFFORT[r.effort];
+    $('manualIn').hidden = !!est;
+    $('effortEst').textContent = est ? 'Stima: ~' + riderPower() + ' W mentre pedali, cadenza ' + EST_CADENCE + ' rpm' : '';
+    $('effortEst').hidden = !est;
+  }
+
   function bindRider() {
+    var effortBtns = document.querySelectorAll('#effortSeg button');
+    Array.prototype.forEach.call(effortBtns, function (b) {
+      b.setAttribute('aria-pressed', b.dataset.effort === state.rider.effort ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        state.rider.effort = b.dataset.effort;
+        Array.prototype.forEach.call(effortBtns, function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+        renderEffort(); onRiderChange();
+      });
+    });
     ['riderWeight', 'bikeWeight', 'cadence', 'riderPower'].forEach(function (id) {
       $(id).value = state.rider[id];
       $(id).addEventListener('input', function () {
         var v = parseFloat($(id).value);
-        if (isFinite(v)) { state.rider[id] = v; onRiderChange(); }
+        if (isFinite(v)) { state.rider[id] = v; renderEffort(); onRiderChange(); }
       });
     });
     $('battery').value = state.rider.battery;
@@ -460,6 +520,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
       });
     });
     $('riderForm').addEventListener('submit', function (e) { e.preventDefault(); });
+    renderEffort();
   }
 
   /* ---------------- percorso ---------------- */
@@ -514,7 +575,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
   function energyParams(modesRes) {
     var r = state.rider, R = state.route;
     if (!modesRes) return null;
-    return { modes: modesRes.modes, totalWeight: modesRes.totalWeight, riderW: r.riderPower, rpm: r.cadence,
+    return { modes: modesRes.modes, totalWeight: modesRes.totalWeight, riderW: riderPower(), rpm: riderCadence(),
       batteryWh: BATTERY_WH[r.battery] || 800, startPct: R.startPct, reservePct: R.reservePct, surface: R.surface };
   }
   function planOpts() {

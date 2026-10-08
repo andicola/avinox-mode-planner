@@ -39,6 +39,7 @@ Tutto gira nel browser: il file GPX non viene caricato da nessuna parte.
 - Bande per modalità: ECO 1–7 e TURBO 8–15 (fissi), AUTO 3–11 e TRAIL 6–13 (range). Ogni modalità è ancorata alla precedente.
 - Potenza a passi di 50 W, coppia a passi di 5 Nm (i valori che l'app accetta). La coppia è dimensionata per una salita a 60 rpm.
 - Stili: Risparmio, Bilanciato, Enduro (W/kg per modalità del calcolatore originale).
+- Potenza e cadenza: se non le conosci, scegli quanto spingi (Poco, Normale, Tanto). La potenza viene stimata dal tuo peso con 1,2, 1,6 o 2,2 W/kg e la cadenza fissata a 80 rpm. Con "Lo so" inserisci i tuoi valori, per esempio letti sul display Avinox durante una salita regolare. La cadenza pesa poco: tra 60 e 100 rpm lo schema non cambia, perché la coppia è dimensionata a 60 rpm.
 
 ### Tratti e waypoint
 
