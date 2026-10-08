@@ -2,6 +2,7 @@ name: GitHub Pages
 
 # Pubblica la pagina su https://<utente>.github.io/avinox-mode-planner/
 # Serve una volta sola: Settings → Pages → Source: GitHub Actions.
+# Versioni delle action allineate al modello ufficiale "static.yml" di GitHub.
 on:
   push:
     branches: [main]
@@ -14,7 +15,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -24,10 +25,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm test
+      - name: Test
+        run: npm test
       - name: Prepara il sito
         run: |
           mkdir -p _site
@@ -37,4 +36,4 @@ jobs:
         with:
           path: _site
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
