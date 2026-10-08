@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Schema delle modalità DJI Avinox e waypoint di cambio modalità da GPX per Wikiloc, con stima della batteria.">
+<title>Avinox Mode Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: scheda d'officina in alto (input a sinistra, cartellino impostazioni a destra),
+   sotto il giro: opzioni, riepilogo con la batteria, profilo con la curva di carica,
+   forma della traccia e lista dei waypoint. Grigio basalto come la bici; l'unico
+   colore forte è quello delle quattro modalità. */
+:root {
+  --bg: #ECEFED;
+  --panel: #FAFBFA;
+  --soft: #E1E6E3;
+  --ink: #161A19;
+  --muted: #59625F;
+  --line: #CDD4D0;
+  --eco: #23866A;
+  --auto: #3466B0;
+  --trail: #C67A12;
+  --turbo: #C3313D;
+  --boost: #7046C4;
+  --on-mode: #FFFFFF;
+  --ok: #1F7A4D;
+  --bad: #B3261E;
+  --warn-bg: #FBEFD9;
+  --warn-ink: #6B4508;
+  --f-display: "Saira Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-data: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1211; --panel: #171B1A; --soft: #20262A; --ink: #E6EBE8; --muted: #98A29E; --line: #2B3331;
+    --eco: #3DB28D; --auto: #6C9DE3; --trail: #EBA03C; --turbo: #EE5D68; --boost: #A585EE; --on-mode: #0F1211;
+    --ok: #4CC08A; --bad: #F2726A; --warn-bg: #3A2D12; --warn-ink: #F3D49B;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1211; --panel: #171B1A; --soft: #20262A; --ink: #E6EBE8; --muted: #98A29E; --line: #2B3331;
+  --eco: #3DB28D; --auto: #6C9DE3; --trail: #EBA03C; --turbo: #EE5D68; --boost: #A585EE; --on-mode: #0F1211;
+  --ok: #4CC08A; --bad: #F2726A; --warn-bg: #3A2D12; --warn-ink: #F3D49B;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); padding-block: 28px 56px; display: grid; gap: 44px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.05; }
+p { margin: 0; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.mode-eco { --m: var(--eco); } .mode-auto { --m: var(--auto); } .mode-trail { --m: var(--trail); } .mode-turbo { --m: var(--turbo); } .mode-boost { --m: var(--boost); }
+
+/* ---------- testata ---------- */
+.mast { display: grid; gap: 10px; }
+.eyebrow { font-family: var(--f-data); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mast h1 { font-size: clamp(40px, 7vw, 68px); font-weight: 700; letter-spacing: -.01em; text-transform: uppercase; }
+.mast h1 .ticks { display: inline-flex; gap: 5px; vertical-align: middle; margin-left: 12px; transform: translateY(-6px); }
+.mast h1 .ticks i { display: block; width: 10px; height: 28px; background: var(--m); border-radius: 2px; transform: skewX(-12deg); }
+.mast p { max-width: 62ch; color: var(--muted); font-size: 17px; }
+
+.sec-head { display: grid; gap: 4px; margin-bottom: 16px; }
+.sec-head h2 { font-size: 30px; font-weight: 600; text-transform: uppercase; letter-spacing: .01em; }
+.sec-head p { color: var(--muted); max-width: 70ch; }
+
+/* ---------- campi ---------- */
+.field { display: grid; gap: 4px; min-width: 0; align-content: start; }
+.field label, .field .lbl { font-size: 13px; font-weight: 600; color: var(--muted); }
+.hint { font-size: 12.5px; color: var(--muted); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
+input[type="number"], select { width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); font-family: var(--f-data); font-size: 15px; }
+input[type="number"]:focus, select:focus { border-color: var(--ink); outline: none; }
+.slider { display: grid; grid-template-columns: minmax(0, 1fr) 54px; gap: 10px; align-items: center; }
+.slider input[type="range"] { width: 100%; accent-color: var(--ink); }
+.slider output { font-family: var(--f-display); font-size: 24px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.check { display: flex; align-items: flex-start; gap: 8px; font-size: 14.5px; cursor: pointer; }
+.check input { width: 18px; height: 18px; margin-top: 2px; flex: none; accent-color: var(--ink); }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.seg button { border: 0; background: var(--bg); padding: 8px 4px; font-size: 14px; font-weight: 600; cursor: pointer; border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 5px; border: 1px solid var(--ink); background: transparent; font-weight: 600; font-size: 14.5px; cursor: pointer; }
+.btn:hover { background: var(--soft); }
+.btn.primary { background: var(--ink); color: var(--bg); }
+.btn.primary:hover { opacity: .88; background: var(--ink); }
+.callout { font-size: 14px; color: var(--warn-ink); background: var(--warn-bg); padding: 10px 12px; border-radius: 5px; }
+.tag { display: inline-block; font-family: var(--f-data); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; background: var(--soft); color: var(--muted); margin-left: 6px; vertical-align: 2px; }
+
+/* ---------- schema ---------- */
+.schema { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.inputs { display: grid; gap: 14px; padding: 18px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); }
+.sheet { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); overflow: hidden; min-width: 0; }
+.sheet-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 16px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.sheet-top h3 { font-size: 22px; font-weight: 600; text-transform: uppercase; }
+.sheet-top .meta { font-family: var(--f-data); font-size: 12.5px; color: var(--muted); }
+.mrow { display: grid; grid-template-columns: 112px repeat(3, minmax(0, 1fr)); gap: 4px 16px; padding: 14px 18px 14px 0; border-bottom: 1px solid var(--line); align-items: center; }
+.mrow:last-child { border-bottom: 0; }
+.mname { align-self: stretch; display: grid; align-content: center; gap: 2px; padding-left: 18px; border-left: 6px solid var(--m); }
+.mname b { font-family: var(--f-display); font-size: 26px; font-weight: 700; line-height: 1; color: var(--m); letter-spacing: .02em; }
+.mname span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.cell { display: grid; min-width: 0; }
+.cell .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.cell .v { font-family: var(--f-display); font-size: 32px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cell .v small { font-size: 18px; font-weight: 500; margin-left: 2px; }
+.cell .s { font-family: var(--f-data); font-size: 11.5px; color: var(--muted); }
+.dyn { grid-column: 2 / -1; font-family: var(--f-data); font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.dyn b { color: var(--ink); font-weight: 600; }
+.mwarn { grid-column: 2 / -1; font-size: 13px; color: var(--warn-ink); background: var(--warn-bg); padding: 6px 10px; border-radius: 4px; }
+.sheet-foot { display: grid; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid var(--line); background: var(--bg); font-size: 13.5px; color: var(--muted); }
+.sheet-foot .boost { color: var(--ink); }
+.sheet-foot .boost b { color: var(--boost); font-family: var(--f-display); font-size: 17px; letter-spacing: .03em; }
+
+/* ---------- percorso ---------- */
+.route-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 14px 18px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); }
+.file-btn { position: relative; overflow: hidden; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.route-id { display: grid; gap: 1px; min-width: 0; flex: 1 1 260px; }
+.route-id strong { font-size: 17px; overflow-wrap: anywhere; }
+.route-id span { font-family: var(--f-data); font-size: 12.5px; color: var(--muted); }
+.error { color: var(--bad); font-weight: 600; font-size: 14px; flex-basis: 100%; }
+
+.opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.grp { margin: 0; padding: 14px 18px 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); display: grid; gap: 12px; align-content: start; min-width: 0; }
+.grp legend { float: left; width: 100%; padding: 0; margin-bottom: 2px; font-family: var(--f-display); font-size: 19px; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
+.grp legend + * { clear: both; }
+.grp-map { grid-column: 1 / -1; }
+.map-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.map-grid select { padding: 7px 8px; font-size: 14px; border-left: 5px solid var(--m, var(--line)); }
+.adapted { font-family: var(--f-data); font-size: 11.5px; color: var(--bad); }
+.grp .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.summary { display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: end; margin-top: 18px; }
+.stat { display: grid; }
+.stat .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.stat .v { font-family: var(--f-display); font-size: 30px; font-weight: 600; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.stat .v.ok { color: var(--ok); } .stat .v.bad { color: var(--bad); }
+.stat .s { font-family: var(--f-data); font-size: 11.5px; color: var(--muted); }
+.share { flex: 1 1 260px; display: grid; gap: 6px; min-width: 0; }
+.share-bar { display: flex; height: 12px; border-radius: 3px; overflow: hidden; background: var(--soft); }
+.share-bar i { display: block; height: 100%; background: var(--m); }
+.share-legend { display: flex; flex-wrap: wrap; gap: 2px 14px; font-family: var(--f-data); font-size: 12px; color: var(--muted); }
+.share-legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; background: var(--m); margin-right: 5px; }
+.plan-note { margin-top: 12px; }
+.plan-note:empty { display: none; }
+
+.chart { margin-top: 14px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); padding: 8px 6px 4px; }
+.chart svg { display: block; width: 100%; }
+.route-grid { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 20px; margin-top: 20px; align-items: start; }
+.shape { margin: 0; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); padding: 10px; }
+.shape svg { display: block; width: 100%; height: auto; }
+.shape figcaption { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+.cues { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); min-width: 0; }
+.cues-head { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.cues-head h3 { font-size: 22px; font-weight: 600; text-transform: uppercase; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cue-list { list-style: none; margin: 0; padding: 0; }
+.cue { display: grid; grid-template-columns: 30px 70px minmax(0, 1fr); gap: 2px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); align-items: start; }
+.cue:last-child { border-bottom: 0; }
+.cue:hover { background: var(--soft); }
+.cue .n { width: 26px; height: 26px; border-radius: 50%; background: var(--m); color: var(--on-mode); display: grid; place-items: center; font-family: var(--f-data); font-size: 12px; font-weight: 600; }
+.cue .km { font-family: var(--f-data); font-size: 14px; padding-top: 3px; font-variant-numeric: tabular-nums; display: grid; }
+.cue .km i { font-style: normal; font-size: 12px; color: var(--muted); }
+.cue .km i.low { color: var(--bad); }
+.cue .t { min-width: 0; }
+.cue .t b { font-family: var(--f-display); font-size: 20px; font-weight: 700; color: var(--m); letter-spacing: .02em; margin-right: 6px; }
+.cue .t .rest { font-family: var(--f-data); font-size: 13px; }
+.cue .t p { font-size: 13.5px; color: var(--muted); }
+.status { padding: 10px 16px; font-size: 13.5px; color: var(--muted); border-top: 1px solid var(--line); }
+.status:empty { display: none; }
+.manual { padding: 0 16px 14px; }
+.manual textarea { width: 100%; height: 140px; font-family: var(--f-data); font-size: 12px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; padding: 8px; }
+
+/* ---------- uso ---------- */
+.howto { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 2px solid var(--ink); list-style: none; padding: 0; margin: 0; counter-reset: s; }
+.howto li { padding: 14px 18px 4px 0; display: grid; gap: 6px; align-content: start; counter-increment: s; min-width: 0; }
+.howto li::before { content: counter(s); font-family: var(--f-display); font-size: 34px; font-weight: 700; line-height: 1; color: var(--muted); }
+.howto h3 { font-size: 19px; font-weight: 600; text-transform: uppercase; }
+.howto p { font-size: 14.5px; color: var(--muted); }
+.foot { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 4px; }
+.foot a { color: var(--ink); }
+
+@media (max-width: 960px) {
+  .map-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .howto { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .schema, .route-grid, .opts { grid-template-columns: minmax(0, 1fr); }
+  .mrow { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 12px 14px 12px 0; }
+  .mname { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 10px; padding-left: 14px; }
+  .mrow .c1 { padding-left: 20px; }
+  .dyn { grid-column: 1 / -1; padding-left: 20px; }
+  .mwarn { grid-column: 1 / -1; margin-left: 20px; }
+  .cell .v { font-size: 26px; }
+  .map-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .howto { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .share-bar i { transition: width .35s ease; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow">Amflow PR Carbon Pro · Avinox M2S</div>
+    <h1>Avinox Mode Planner<span class="ticks" aria-hidden="true"><i class="mode-eco"></i><i class="mode-auto"></i><i class="mode-trail"></i><i class="mode-turbo"></i></span></h1>
+    <p>In alto i numeri da inserire nell'app Avinox per ogni modalità. Sotto, il giro diviso in tratti con la batteria prevista: dove la modalità giusta cambia nasce un waypoint da importare su Wikiloc e da seguire con l'Apple Watch.</p>
+  </header>
+
+  <section aria-labelledby="h-schema">
+    <div class="sec-head">
+      <h2 id="h-schema">Schema modalità</h2>
+      <p>Stesso calcolo di Avinox Setup Calculator, ridotto a quello che serve davanti all'app.</p>
+    </div>
+    <div class="schema">
+      <form class="inputs" id="riderForm" autocomplete="off">
+        <div class="row2">
+          <div class="field"><label for="riderWeight">Tu, con attrezzatura (kg)</label><input type="number" id="riderWeight" min="30" max="200" step="0.5" value="82"></div>
+          <div class="field"><label for="bikeWeight">Bici (kg)</label><input type="number" id="bikeWeight" min="10" max="40" step="0.1" value="24.2"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="cadence">Cadenza (rpm)</label><input type="number" id="cadence" min="20" max="140" step="1" value="75"></div>
+          <div class="field"><label for="riderPower">Tua potenza (W)</label><input type="number" id="riderPower" min="20" max="600" step="5" value="200"></div>
+        </div>
+        <div class="field">
+          <label for="battery">Batteria</label>
+          <select id="battery"><option value="RS800">RS800 · 800 Wh</option><option value="RS600">RS600 · 600 Wh</option></select>
+        </div>
+        <div class="field">
+          <span class="lbl" id="styleLbl">Stile</span>
+          <div class="seg" role="group" aria-labelledby="styleLbl" id="styleSeg">
+            <button type="button" data-style="risparmio" aria-pressed="false">Risparmio</button>
+            <button type="button" data-style="bilanciato" aria-pressed="true">Bilanciato</button>
+            <button type="button" data-style="enduro" aria-pressed="false">Enduro</button>
+          </div>
+          <span class="hint" id="styleHint"></span>
+        </div>
+        <p class="hint">Potenza: quella che fai mentre pedali, non la media del giro con le discese.</p>
+      </form>
+
+      <div class="sheet">
+        <div class="sheet-top">
+          <div>
+            <h3>Impostazioni app</h3>
+            <div class="meta" id="sheetMeta"></div>
+          </div>
+          <button type="button" class="btn" id="copySchema">Copia schema</button>
+        </div>
+        <div id="modes"></div>
+        <div class="sheet-foot" id="sheetFoot"></div>
+        <div class="manual" id="schemaManual" hidden><textarea id="schemaManualText" readonly aria-label="Schema da copiare"></textarea></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-route">
+    <div class="sec-head">
+      <h2 id="h-route">Percorso, batteria e avvisi</h2>
+      <p>Le pendenze sono misurate su finestre di 140 m e ogni fascia ha la sua modalità. Se con quelle modalità arriveresti sotto la riserva che scegli, il piano abbassa l'assistenza dove costa meno fatica, partendo dai tratti più facili.</p>
+    </div>
+
+    <div class="route-bar">
+      <label class="btn primary file-btn" for="gpxFile">Carica GPX o KML<input type="file" id="gpxFile" accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml"></label>
+      <div class="route-id"><strong id="routeName"></strong><span id="routeMeta"></span></div>
+      <div class="error" id="routeError" hidden></div>
+    </div>
+
+    <div class="opts">
+      <fieldset class="grp grp-map">
+        <legend>Modalità per pendenza</legend>
+        <div class="map-grid" id="mapGrid">
+          <div class="field"><label for="m-flat">Pianura &lt; 3%</label><select id="m-flat" data-band="flat"></select><span class="adapted" data-for="flat"></span></div>
+          <div class="field"><label for="m-rolling">Ondulato 3–7%</label><select id="m-rolling" data-band="rolling"></select><span class="adapted" data-for="rolling"></span></div>
+          <div class="field"><label for="m-climb">Salita 7–12%</label><select id="m-climb" data-band="climb"></select><span class="adapted" data-for="climb"></span></div>
+          <div class="field"><label for="m-steep">Ripida 12–18%</label><select id="m-steep" data-band="steep"></select><span class="adapted" data-for="steep"></span></div>
+          <div class="field"><label for="m-extreme">Estrema &gt; 18%</label><select id="m-extreme" data-band="extreme"></select><span class="adapted" data-for="extreme"></span></div>
+        </div>
+        <p class="hint">In discesa la modalità non cambia: resta quella del tratto prima.</p>
+      </fieldset>
+
+      <fieldset class="grp">
+        <legend>Batteria</legend>
+        <div class="field"><label for="startPct">Carica alla partenza</label>
+          <div class="slider"><input type="range" id="startPct" min="30" max="100" step="5" value="100"><output id="startOut" for="startPct">100%</output></div></div>
+        <div class="field"><label for="reservePct">Batteria residua all'arrivo</label>
+          <div class="slider"><input type="range" id="reservePct" min="0" max="60" step="5" value="15"><output id="reserveOut" for="reservePct">15%</output></div></div>
+        <div class="field"><label for="surface">Fondo prevalente</label><select id="surface"></select></div>
+        <label class="check" for="adaptChk"><input type="checkbox" id="adaptChk" checked> Se non basta, abbassa le modalità per arrivare con questa riserva</label>
+      </fieldset>
+
+      <fieldset class="grp">
+        <legend>Avvisi</legend>
+        <div class="two">
+          <div class="field"><label for="sens">Quanti avvisi</label>
+            <select id="sens"><option value="alta">Molti</option><option value="media" selected>Equilibrati</option><option value="bassa">Pochi</option></select>
+            <span class="hint" id="sensHint"></span></div>
+          <div class="field"><label for="lead">Anticipo sulle salite</label>
+            <select id="lead"><option value="0">0 m</option><option value="50">50 m</option><option value="100" selected>100 m</option><option value="200">200 m</option></select>
+            <span class="hint">L'avviso arriva prima dell'inizio.</span></div>
+        </div>
+        <label class="check" for="boostChk"><input type="checkbox" id="boostChk"> Avvisa anche le rampe brevi (80–300 m oltre il 14%) da fare col Boost</label>
+      </fieldset>
+    </div>
+
+    <div class="summary" id="summary"></div>
+    <div class="plan-note" id="planNote"></div>
+    <div class="chart" id="chart"></div>
+
+    <div class="route-grid">
+      <figure class="shape">
+        <div id="shape"></div>
+        <figcaption>Forma della traccia, nord in alto. Il cerchio vuoto è la partenza.</figcaption>
+      </figure>
+      <div class="cues">
+        <div class="cues-head">
+          <h3>Waypoint</h3>
+          <div class="actions">
+            <button type="button" class="btn primary" id="dlBtn" hidden>Scarica GPX per Wikiloc</button>
+            <button type="button" class="btn" id="copyCues">Copia lista</button>
+            <button type="button" class="btn" id="copyGpx">Copia GPX</button>
+          </div>
+        </div>
+        <ol class="cue-list" id="cueList"></ol>
+        <div class="status" id="dlStatus" role="status"></div>
+        <div class="manual" id="cueManual" hidden><textarea id="cueManualText" readonly aria-label="Testo da copiare"></textarea></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-how">
+    <div class="sec-head"><h2 id="h-how">Dal file al polso</h2></div>
+    <ol class="howto">
+      <li><h3>Imposta le modalità</h3><p>Nell'app Avinox inserisci per ogni modalità livello, potenza e coppia della scheda. AUTO e TRAIL hanno un minimo e un massimo.</p></li>
+      <li><h3>Importa su Wikiloc</h3><p>Scarica il file e importa il .gpx su Wikiloc (se arriva in uno zip, su iPhone si apre toccandolo nell'app File). Controlla che i waypoint compaiano lungo la traccia.</p></li>
+      <li><h3>Prova corta</h3><p>Prima del giro vero fai un anello vicino casa con due waypoint e verifica che l'Apple Watch vibri quando ci passi. Wikiloc documenta l'avviso fuori traccia; quello sui waypoint va provato.</p></li>
+      <li><h3>In sella</h3><p>Parti nella modalità del waypoint START. Quando vibra, cambia col comando al manubrio e confronta la batteria con quella prevista nella lista. Sulle rampe brevi usa il Boost.</p></li>
+    </ol>
+  </section>
+
+  <footer class="foot">
+    <p>Calcolo delle modalità e modello di consumo: porting lato browser di <a href="https://github.com/lucad87/avinox-setup-app" target="_blank" rel="noopener">avinox-setup-app</a> di Luca Donnaloia (licenza MIT, <a href="https://avinox-calculator.lucad.cloud/" target="_blank" rel="noopener">versione online</a>), applicato tratto per tratto. Le percentuali per livello sono dati della community, non specifiche DJI; la stima della batteria ha un margine di circa ±22%.</p>
+    <p>Il file GPX viene letto solo nel browser e non viene caricato da nessuna parte.</p>
+  </footer>
+</div>
+
+<script src="planner.js"></script>
+<script>
+(function () {
+  'use strict';
+  var P = window.AvinoxPlanner;
+  var $ = function (id) { return document.getElementById(id); };
+  var LABEL = { eco: 'ECO', auto: 'AUTO', trail: 'TRAIL', turbo: 'TURBO', boost: 'BOOST' };
+  var BAND_LABEL = { flat: 'Pianura', rolling: 'Ondulato', climb: 'Salita', steep: 'Ripida', extreme: 'Estrema' };
+  var SENS = { alta: { minUp: 300, minLen: 500 }, media: { minUp: 400, minLen: 800 }, bassa: { minUp: 600, minLen: 1200 } };
+  var DEFAULT_MAP = { flat: 'eco', rolling: 'auto', climb: 'trail', steep: 'turbo', extreme: 'turbo' };
+  var BATTERY_WH = { RS800: 800, RS600: 600 };
+  var STORE_KEY = 'avinox-mode-planner-v1';
+
+  var state = {
+    rider: { riderWeight: 82, bikeWeight: 24.2, cadence: 75, riderPower: 200, battery: 'RS800', style: 'bilanciato' },
+    route: { mapping: Object.assign({}, DEFAULT_MAP), sens: 'media', lead: 100, boost: false, startPct: 100, reservePct: 15, surface: 'mixed', adapt: true },
+    modes: null, file: null, base: null, result: null, schemaText: ''
+  };
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      var s = JSON.parse(raw);
+      if (s.rider) Object.assign(state.rider, s.rider);
+      if (s.route) { Object.assign(state.route, s.route); state.route.mapping = Object.assign({}, DEFAULT_MAP, s.route.mapping || {}); }
+    } catch (e) { /* memoria del browser non disponibile */ }
+  }
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ rider: state.rider, route: state.route })); } catch (e) { /* ignora */ }
+  }
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function n1(x) { return (Math.round(x * 10) / 10).toLocaleString('it-IT'); }
+
+  /* ---------------- schema ---------------- */
+  function modesFor(style) {
+    var r = state.rider;
+    return P.calcModes({ riderWeight: r.riderWeight, bikeWeight: r.bikeWeight, cadence: r.cadence, riderPower: r.riderPower, wkg: P.PRESETS[style].wkg });
+  }
+
+  function renderSchema() {
+    var r = state.rider;
+    var res = modesFor(r.style);
+    state.modes = res.error ? null : res;
+    var box = $('modes');
+    box.innerHTML = '';
+    if (res.error) {
+      box.appendChild(el('div', 'callout', esc(res.error)));
+      $('sheetFoot').innerHTML = ''; $('sheetMeta').textContent = ''; state.schemaText = '';
+      return;
+    }
+    $('sheetMeta').textContent = 'Sistema ' + n1(res.totalWeight) + ' kg · ' + r.riderPower + ' W · ' + r.cadence + ' rpm · ' + P.PRESETS[r.style].label;
+    var lines = ['Avinox M2S – schema modalità (' + n1(res.totalWeight) + ' kg, ' + r.riderPower + ' W, ' + r.cadence + ' rpm, ' + P.PRESETS[r.style].label + ')'];
+    P.MODE_KEYS.forEach(function (k) {
+      var m = res.modes[k];
+      var range = m.levelMin !== m.levelMax;
+      var row = el('div', 'mrow mode-' + k);
+      row.appendChild(el('div', 'mname', '<b>' + m.label + '</b><span>' + (range ? 'range' : 'fisso') + '</span>'));
+      row.appendChild(el('div', 'cell c1', '<span class="k">' + (range ? 'Livelli' : 'Livello') + '</span><span class="v">' +
+        (range ? m.levelMin + '–' + m.levelMax : m.levelMin) + '</span><span class="s">' + (range ? m.pctMin + '–' + m.pctMax : m.pctMin) + '%</span>'));
+      row.appendChild(el('div', 'cell', '<span class="k">Potenza max</span><span class="v">' + m.maxPower + '<small>W</small></span><span class="s">' + m.wkg.toFixed(2).replace('.', ',') + ' W/kg</span>'));
+      row.appendChild(el('div', 'cell', '<span class="k">Coppia max</span><span class="v">' + m.maxTorque + '<small>Nm</small></span><span class="s">&nbsp;</span>'));
+      row.appendChild(el('div', 'dyn', '<span>Overrun <b>' + m.overrun + '</b></span><span>Avvio <b>' + m.start + '</b></span><span>Continuità <b>' + m.continued + '</b></span>' +
+        (m.accel != null ? '<span>Accelerazione <b>' + m.accel + '</b></span>' : '')));
+      m.warnings.forEach(function (w) { row.appendChild(el('div', 'mwarn', esc(w))); });
+      box.appendChild(row);
+      lines.push((m.label + '      ').slice(0, 6) + (range ? 'livelli ' + m.levelMin + '–' + m.levelMax : 'livello ' + m.levelMin) +
+        ' · ' + m.maxPower + ' W · ' + m.maxTorque + ' Nm · overrun ' + m.overrun + ' · avvio ' + m.start + ' · continuità ' + m.continued +
+        (m.accel != null ? ' · accelerazione ' + m.accel : ''));
+    });
+    var full = r.battery === 'RS800';
+    var foot = '<p class="boost">' + (full ? 'Boost <b>1500 W · 150 Nm</b> pieni con la RS800, durata standard 30 s (regolabile 1–60 s).'
+      : 'Boost <b>1300 W · 150 Nm</b>: con la RS600 la potenza di picco resta a 1300 W.') + '</p>' +
+      '<p>AUTO e TRAIL: imposta il livello minimo e il massimo. La % sotto il livello è quanto il motore aggiunge rispetto alla tua spinta (dato della community).</p>' +
+      '<p>Nomi nell\'app in inglese: Overrun = Max Overrun, Avvio = Assist Start, Continuità = Continued Assist, Accelerazione = Max Acceleration (solo AUTO).</p>';
+    res.warnings.forEach(function (w) { foot += '<p class="callout">' + esc(w) + '</p>'; });
+    $('sheetFoot').innerHTML = foot;
+    lines.push(full ? 'Boost 1500 W / 150 Nm (RS800), 30 s' : 'Boost 1300 W / 150 Nm (RS600), 30 s');
+    state.schemaText = lines.join('\n');
+    $('styleHint').textContent = { risparmio: 'Autonomia prima di tutto, per giri lunghi.', bilanciato: 'Profilo di riferimento del calcolatore.', enduro: 'Più spinta sulle salite tecniche, consuma di più.' }[r.style];
+  }
+
+  function onRiderChange() { save(); renderSchema(); replan(); }
+
+  function bindRider() {
+    ['riderWeight', 'bikeWeight', 'cadence', 'riderPower'].forEach(function (id) {
+      $(id).value = state.rider[id];
+      $(id).addEventListener('input', function () {
+        var v = parseFloat($(id).value);
+        if (isFinite(v)) { state.rider[id] = v; onRiderChange(); }
+      });
+    });
+    $('battery').value = state.rider.battery;
+    $('battery').addEventListener('change', function () { state.rider.battery = $('battery').value; onRiderChange(); });
+    var segBtns = document.querySelectorAll('#styleSeg button');
+    Array.prototype.forEach.call(segBtns, function (b) {
+      b.setAttribute('aria-pressed', b.dataset.style === state.rider.style ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        state.rider.style = b.dataset.style;
+        Array.prototype.forEach.call(segBtns, function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+        onRiderChange();
+      });
+    });
+    $('riderForm').addEventListener('submit', function (e) { e.preventDefault(); });
+  }
+
+  /* ---------------- percorso ---------------- */
+  function bindRoute() {
+    var R = state.route;
+    Array.prototype.forEach.call(document.querySelectorAll('#mapGrid select'), function (s) {
+      s.innerHTML = P.MODE_KEYS.map(function (k) { return '<option value="' + k + '">' + LABEL[k] + '</option>'; }).join('');
+      var band = s.dataset.band;
+      s.value = R.mapping[band];
+      s.className = 'mode-' + s.value;
+      s.addEventListener('change', function () { R.mapping[band] = s.value; s.className = 'mode-' + s.value; save(); replan(); });
+    });
+    $('surface').innerHTML = Object.keys(P.SURFACES).map(function (k) { return '<option value="' + k + '">' + P.SURFACES[k].label + '</option>'; }).join('');
+    $('surface').value = R.surface;
+    $('surface').addEventListener('change', function () { R.surface = $('surface').value; save(); replan(); });
+    var slider = function (id, out, key) {
+      $(id).value = R[key]; $(out).textContent = R[key] + '%';
+      $(id).addEventListener('input', function () { R[key] = +$(id).value; $(out).textContent = R[key] + '%'; save(); replan(); });
+    };
+    slider('startPct', 'startOut', 'startPct');
+    slider('reservePct', 'reserveOut', 'reservePct');
+    $('adaptChk').checked = !!R.adapt;
+    $('adaptChk').addEventListener('change', function () { R.adapt = $('adaptChk').checked; save(); replan(); });
+    var sensHint = function () { var v = SENS[R.sens] || SENS.media; $('sensHint').textContent = 'Salite da ' + v.minUp + ' m, cali da ' + v.minLen + ' m.'; };
+    $('sens').value = R.sens; sensHint();
+    $('sens').addEventListener('change', function () { R.sens = $('sens').value; sensHint(); save(); replan(); });
+    $('lead').value = String(R.lead);
+    $('lead').addEventListener('change', function () { R.lead = +$('lead').value; save(); replan(); });
+    $('boostChk').checked = !!R.boost;
+    $('boostChk').addEventListener('change', function () { R.boost = $('boostChk').checked; save(); replan(); });
+    $('gpxFile').addEventListener('change', function () {
+      var f = $('gpxFile').files[0];
+      if (!f) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var parsed = P.parseRoute(String(reader.result), f.name);
+          var base = P.prepareRoute(parsed.points);
+          state.file = { name: parsed.name, sample: false, filename: f.name };
+          state.base = base;
+          showError('');
+          replan();
+        } catch (err) { showError(err.message); }
+      };
+      reader.onerror = function () { showError('Non riesco a leggere il file.'); };
+      reader.readAsText(f);
+      $('gpxFile').value = '';
+    });
+  }
+  function showError(msg) { var e = $('routeError'); e.textContent = msg; e.hidden = !msg; }
+
+  function energyParams(modesRes) {
+    var r = state.rider, R = state.route;
+    if (!modesRes) return null;
+    return { modes: modesRes.modes, totalWeight: modesRes.totalWeight, riderW: r.riderPower, rpm: r.cadence,
+      batteryWh: BATTERY_WH[r.battery] || 800, startPct: R.startPct, reservePct: R.reservePct, surface: R.surface };
+  }
+  function planOpts() {
+    var R = state.route, sens = SENS[R.sens] || SENS.media;
+    return { mapping: R.mapping, minLen: sens.minLen, minUp: sens.minUp, lead: R.lead, boost: R.boost, adapt: R.adapt };
+  }
+
+  function replan() {
+    if (!state.base) return;
+    state.result = P.plan(state.base, planOpts(), energyParams(state.modes));
+    renderRoute();
+  }
+
+  function renderRoute() {
+    var r = state.result, f = state.file, en = r.energy;
+    $('routeName').innerHTML = esc(f.name) + (f.sample ? '<span class="tag">esempio sintetico</span>' : '');
+    $('routeMeta').textContent = f.sample ? 'Anello inventato per mostrare lo strumento: carica il GPX del tuo giro.' : (f.filename || '');
+
+    // fasce abbassate dal piano
+    Array.prototype.forEach.call(document.querySelectorAll('.adapted'), function (s) {
+      var c = r.changes.filter(function (x) { return x.band === s.dataset.for; })[0];
+      s.textContent = c ? 'nel piano: ' + LABEL[c.to] : '';
+    });
+
+    var changes = r.waypoints.filter(function (w) { return w.kind === 'up' || w.kind === 'down'; }).length;
+    var sum = $('summary');
+    sum.innerHTML = '';
+    var stat = function (k, v, cls, s) { sum.appendChild(el('div', 'stat', '<span class="k">' + k + '</span><span class="v' + (cls ? ' ' + cls : '') + '">' + v + '</span>' + (s ? '<span class="s">' + s + '</span>' : ''))); };
+    stat('Distanza', P.fmtKm(r.total) + ' km');
+    stat('Dislivello', '+' + Math.round(r.gain) + ' m');
+    stat('Cambi', String(changes));
+    if (en) {
+      stat('Consumo', Math.round(en.totalWh) + ' Wh', '', Math.round(en.low) + '–' + Math.round(en.high) + ' Wh');
+      stat('Arrivo', '~' + Math.round(en.arrivalPct) + '%', en.fits ? 'ok' : 'bad',
+        'tra ' + Math.max(0, Math.round(en.arrivalWorst)) + '% e ' + Math.round(en.arrivalBest) + '% · riserva ' + en.reservePct + '%');
+    }
+    var share = el('div', 'share');
+    var bar = el('div', 'share-bar'), legend = el('div', 'share-legend');
+    P.MODE_KEYS.forEach(function (k) {
+      var pct = (r.share[k] / r.total) * 100;
+      if (pct <= 0) return;
+      var i = el('i', 'mode-' + k); i.style.width = pct + '%'; i.title = LABEL[k] + ' ' + Math.round(pct) + '%';
+      bar.appendChild(i);
+      legend.appendChild(el('span', 'mode-' + k, LABEL[k] + ' ' + P.fmtKm(r.share[k]) + ' km'));
+    });
+    share.appendChild(el('span', 'stat', '<span class="k">Km per modalità</span>'));
+    share.appendChild(bar); share.appendChild(legend);
+    sum.appendChild(share);
+
+    renderPlanNote();
+    drawChart(); drawShape(); renderCues();
+  }
+
+  function renderPlanNote() {
+    var r = state.result, en = r.energy, box = $('planNote'), R = state.route;
+    box.innerHTML = '';
+    if (!en) { box.appendChild(el('p', 'callout', 'Correggi i dati della scheda modalità per vedere la stima della batteria.')); return; }
+    var list = r.changes.map(function (c) { return BAND_LABEL[c.band] + ' ' + LABEL[c.from] + ' → ' + LABEL[c.to]; }).join(', ');
+    if (r.exhausted) {
+      var msg = 'Anche facendo tutto in ECO arrivi intorno al ' + Math.max(0, Math.round(en.arrivalPct)) + '%, sotto il ' + R.reservePct + '% che vuoi.';
+      if (state.rider.style !== 'risparmio') {
+        var alt = modesFor('risparmio');
+        if (!alt.error) {
+          var altPlan = P.plan(state.base, planOpts(), energyParams(alt));
+          msg += ' Con lo stile Risparmio nella scheda il piano arriva al ~' + Math.max(0, Math.round(altPlan.energy.arrivalPct)) + '%.';
+        }
+      } else {
+        msg += ' Parti più carico, accorcia il giro o abbassa la riserva.';
+      }
+      box.appendChild(el('p', 'callout', esc(msg)));
+    } else if (r.changes.length) {
+      box.appendChild(el('p', 'callout', esc('Per arrivare con almeno il ' + R.reservePct + '% il piano usa meno assistenza: ' + list + '. Le modalità che hai scelto restano salvate.')));
+    } else if (!en.fits) {
+      box.appendChild(el('p', 'callout', esc('Con queste modalità arrivi intorno al ' + Math.round(en.arrivalPct) + '%, sotto la riserva del ' + R.reservePct + '%. Attiva "abbassa le modalità" per adattare il piano.')));
+    }
+  }
+
+  var NS = 'http://www.w3.org/2000/svg';
+  function svgEl(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function niceStep(span, target) {
+    var raw = span / target, mag = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / mag;
+    return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * mag;
+  }
+  function colors() { var css = getComputedStyle(document.documentElement); return function (k) { return css.getPropertyValue('--' + k).trim(); }; }
+  function txt(parent, x, y, s, attrs) {
+    var a = Object.assign({ x: x, y: y, 'font-size': 11, 'font-family': 'JetBrains Mono, monospace' }, attrs || {});
+    var t = svgEl('text', a, parent); t.textContent = s; return t;
+  }
+
+  /* Profilo altimetrico colorato per modalità e, sotto, la carica prevista. */
+  function drawChart() {
+    var r = state.result, box = $('chart'), en = r.energy;
+    var col = colors();
+    var W = Math.max(300, box.clientWidth - 12), narrow = W < 560;
+    var ml = 46, mr = 14, mt = 58, eleH = narrow ? 150 : 190, gap = 32, batH = en ? (narrow ? 70 : 84) : 0, mb = 24;
+    var H = mt + eleH + (en ? gap + batH : 0) + mb, pw = W - ml - mr;
+    var eStep = niceStep(r.maxEle - r.minEle || 50, 4);
+    var e0 = Math.floor(r.minEle / eStep) * eStep, e1 = Math.ceil(r.maxEle / eStep) * eStep;
+    if (e1 === e0) e1 = e0 + eStep;
+    var x = function (d) { return ml + (d / r.total) * pw; };
+    var y = function (e) { return mt + eleH - ((e - e0) / (e1 - e0)) * eleH; };
+    var bTop = mt + eleH + gap;
+    var yb = function (p) { return bTop + batH - (Math.max(0, Math.min(100, p)) / 100) * batH; };
+    box.innerHTML = '';
+    var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img' }, box);
+    svgEl('title', {}, svg).textContent = 'Profilo altimetrico con le modalità per tratto' + (en ? ' e batteria prevista' : '');
+    var prof = r.profile;
+    function at(d, key) {
+      var lo = 0, hi = prof.length - 1;
+      while (hi - lo > 1) { var mid = (lo + hi) >> 1; if (prof[mid].d <= d) lo = mid; else hi = mid; }
+      var a = prof[lo], b = prof[hi]; if (b.d === a.d) return a[key];
+      return a[key] + (b[key] - a[key]) * Math.min(1, Math.max(0, (d - a.d) / (b.d - a.d)));
+    }
+    var plotBottom = en ? bTop + batH : mt + eleH;
+    r.runs.forEach(function (run) {
+      svgEl('rect', { x: x(run.start), y: mt, width: Math.max(0.5, x(run.end) - x(run.start)), height: plotBottom - mt, fill: col(run.mode), 'fill-opacity': 0.07 }, svg);
+    });
+    for (var e = e0; e <= e1 + 0.01; e += eStep) {
+      svgEl('line', { x1: ml, x2: ml + pw, y1: y(e), y2: y(e), stroke: col('line'), 'stroke-width': 1, 'stroke-dasharray': e === e0 ? '' : '3 4' }, svg);
+      txt(svg, ml - 6, y(e) + 4, Math.round(e) + ' m', { 'text-anchor': 'end', fill: col('muted') });
+    }
+    var kStep = niceStep(r.total / 1000, narrow ? 5 : 9);
+    for (var km = 0; km <= r.total / 1000 + 1e-9; km += kStep) {
+      txt(svg, x(km * 1000), H - 7, (Math.round(km * 10) / 10).toLocaleString('it-IT') + (km === 0 ? ' km' : ''), { 'text-anchor': km === 0 ? 'start' : 'middle', fill: col('muted') });
+    }
+    r.runs.forEach(function (run) {
+      var pts = [[run.start, at(run.start, 'ele')]];
+      prof.forEach(function (p) { if (p.d > run.start && p.d < run.end) pts.push([p.d, p.ele]); });
+      pts.push([run.end, at(run.end, 'ele')]);
+      var line = pts.map(function (p) { return x(p[0]).toFixed(1) + ',' + y(p[1]).toFixed(1); }).join('L');
+      svgEl('path', { d: 'M' + x(run.start).toFixed(1) + ',' + (mt + eleH) + 'L' + line + 'L' + x(run.end).toFixed(1) + ',' + (mt + eleH) + 'Z', fill: col(run.mode), 'fill-opacity': 0.42 }, svg);
+      svgEl('path', { d: 'M' + line, fill: 'none', stroke: col(run.mode), 'stroke-width': 2.2, 'stroke-linejoin': 'round' }, svg);
+    });
+    if (en) {
+      txt(svg, ml, bTop - 8, 'Batteria prevista', { fill: col('muted'), 'font-size': 10.5 });
+      [0, 50, 100].forEach(function (p) {
+        svgEl('line', { x1: ml, x2: ml + pw, y1: yb(p), y2: yb(p), stroke: col('line'), 'stroke-width': 1, 'stroke-dasharray': p === 0 ? '' : '3 4' }, svg);
+        txt(svg, ml - 6, yb(p) + 4, p + '%', { 'text-anchor': 'end', fill: col('muted') });
+      });
+      var res = en.reservePct;
+      svgEl('rect', { x: ml, y: yb(res), width: pw, height: Math.max(0, yb(0) - yb(res)), fill: col('bad'), 'fill-opacity': 0.08 }, svg);
+      svgEl('line', { x1: ml, x2: ml + pw, y1: yb(res), y2: yb(res), stroke: col('bad'), 'stroke-width': 1.2, 'stroke-dasharray': '5 4' }, svg);
+      txt(svg, ml + 4, yb(res) - 4, 'riserva ' + res + '%', { 'text-anchor': 'start', fill: col('bad'), 'font-size': 10.5 });
+      var bl = prof.map(function (p) { return x(p.d).toFixed(1) + ',' + yb(p.pct).toFixed(1); }).join('L');
+      svgEl('path', { d: 'M' + x(0) + ',' + yb(0) + 'L' + bl + 'L' + x(r.total).toFixed(1) + ',' + yb(0) + 'Z', fill: col('ink'), 'fill-opacity': 0.06 }, svg);
+      svgEl('path', { d: 'M' + bl, fill: 'none', stroke: col('ink'), 'stroke-width': 2, 'stroke-linejoin': 'round' }, svg);
+      var endP = prof[prof.length - 1].pct;
+      svgEl('circle', { cx: x(r.total), cy: yb(endP), r: 4, fill: col(en.fits ? 'ok' : 'bad') }, svg);
+      txt(svg, x(r.total) - 8, yb(endP) - 7, '~' + Math.round(endP) + '%', { 'text-anchor': 'end', fill: col(en.fits ? 'ok' : 'bad'), 'font-weight': 600 });
+    }
+    var lastX = [-1e9, -1e9];
+    r.waypoints.forEach(function (w, i) {
+      var wx = x(w.dist), row = wx - lastX[0] >= 24 ? 0 : (wx - lastX[1] >= 24 ? 1 : 0);
+      lastX[row] = wx;
+      var cy = row === 0 ? 14 : 38;
+      var g = svgEl('g', { 'data-n': i, class: 'wpm' }, svg);
+      svgEl('line', { x1: wx, x2: wx, y1: cy + 10, y2: y(at(w.dist, 'ele')), stroke: col(w.mode), 'stroke-width': 1.2, 'stroke-dasharray': '2 3' }, g);
+      svgEl('circle', { cx: wx, cy: cy, r: 10, fill: col(w.mode) }, g);
+      txt(g, wx, cy + 4, String(i + 1), { 'text-anchor': 'middle', 'font-weight': 600, fill: col('on-mode') });
+      svgEl('title', {}, g).textContent = 'km ' + P.fmtKm(w.dist) + ' · ' + w.name;
+    });
+  }
+
+  function drawShape() {
+    var r = state.result, box = $('shape');
+    var tr = r.track, lat0 = tr[0].lat, c = Math.cos(lat0 * Math.PI / 180);
+    var proj = function (p) { return [(p.lon - tr[0].lon) * c, -(p.lat - lat0)]; };
+    var xs = tr.map(function (p) { return proj(p)[0]; }), ys = tr.map(function (p) { return proj(p)[1]; });
+    var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs), minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
+    var S = 300, pad = 18, span = Math.max(maxX - minX, maxY - minY) || 1e-6, k = (S - 2 * pad) / span;
+    var ox = pad + ((S - 2 * pad) - (maxX - minX) * k) / 2, oy = pad + ((S - 2 * pad) - (maxY - minY) * k) / 2;
+    var P2 = function (p) { var q = proj(p); return [ox + (q[0] - minX) * k, oy + (q[1] - minY) * k]; };
+    var col = colors();
+    box.innerHTML = '';
+    var svg = svgEl('svg', { viewBox: '0 0 ' + S + ' ' + S, role: 'img' }, box);
+    svgEl('title', {}, svg).textContent = 'Forma della traccia colorata per modalità';
+    r.runs.forEach(function (run) {
+      var pts = [P2(P.positionAt(r.points, run.start))];
+      tr.forEach(function (p) { if (p.d > run.start && p.d < run.end) pts.push(P2(p)); });
+      pts.push(P2(P.positionAt(r.points, run.end)));
+      svgEl('polyline', { points: pts.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' '), fill: 'none', stroke: col(run.mode), 'stroke-width': 3.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, svg);
+    });
+    var s0 = P2(tr[0]);
+    svgEl('circle', { cx: s0[0], cy: s0[1], r: 7, fill: col('panel'), stroke: col('ink'), 'stroke-width': 2 }, svg);
+    r.waypoints.forEach(function (w, i) {
+      if (w.kind === 'start') return;
+      var q = P2(w);
+      var g = svgEl('g', { 'data-n': i, class: 'wpm' }, svg);
+      svgEl('circle', { cx: q[0], cy: q[1], r: 8, fill: col(w.mode), stroke: col('panel'), 'stroke-width': 1.5 }, g);
+      txt(g, q[0], q[1] + 3.5, String(i + 1), { 'text-anchor': 'middle', 'font-size': 9.5, 'font-weight': 600, fill: col('on-mode') });
+    });
+  }
+
+  function renderCues() {
+    var r = state.result, list = $('cueList'), en = r.energy;
+    list.innerHTML = '';
+    r.waypoints.forEach(function (w, i) {
+      var li = el('li', 'cue mode-' + w.mode);
+      var rest = w.name.replace(/^START · /, '').split(' · ').slice(1).join(' · ');
+      var head = (w.kind === 'start' ? '<span class="tag" style="margin:0 6px 0 0">start</span>' : '') + '<b>' + LABEL[w.mode] + '</b><span class="rest">' + esc(rest) + '</span>';
+      var batt = w.battery != null ? '<i class="' + (en && w.battery < en.reservePct ? 'low' : '') + '">~' + Math.max(0, Math.round(w.battery)) + '%</i>' : '';
+      var desc = w.desc.replace(/^km [\d,]+: /, '').replace(/ Batteria prevista ~\d+%\./, '');
+      li.innerHTML = '<span class="n">' + (i + 1) + '</span><span class="km">km ' + P.fmtKm(w.dist) + batt + '</span><div class="t">' + head + '<p>' + esc(desc) + '</p></div>';
+      li.addEventListener('mouseenter', function () { hot(i, true); });
+      li.addEventListener('mouseleave', function () { hot(i, false); });
+      list.appendChild(li);
+    });
+  }
+  function hot(i, on) {
+    Array.prototype.forEach.call(document.querySelectorAll('.wpm[data-n="' + i + '"] circle'), function (c) { c.setAttribute('r', on ? 13 : (c.closest('#shape') ? 8 : 10)); });
+  }
+
+  /* ---------------- copia e download ---------------- */
+  function copy(text, btn, manualBox, manualText) {
+    var done = function () { var o = btn.textContent; btn.textContent = 'Copiato'; setTimeout(function () { btn.textContent = o; }, 1500); };
+    var fallback = function () { manualText.value = text; manualBox.hidden = false; manualText.focus(); manualText.select(); };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+      else fallback();
+    } catch (e) { fallback(); }
+  }
+  function baseName() {
+    var s = (state.file && state.file.name || 'percorso').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    return (s || 'percorso') + '-modalita-avinox';
+  }
+  function gpxText() { return P.buildGpx(state.file.name + ' · modalità Avinox', state.result); }
+
+  var downloads = null;
+  var inViewer = !!(window.claude && typeof window.claude.use === 'function');
+  function setStatus(t) { $('dlStatus').textContent = t; }
+  if (inViewer) {
+    window.claude.use('downloads').then(function (ns) {
+      downloads = ns;
+      $('dlBtn').hidden = !ns;
+      if (!ns) setStatus('Il download non è disponibile in questa vista: usa Copia GPX e incolla il testo in un file .gpx.');
+    }, function () { setStatus('Il download non è disponibile in questa vista: usa Copia GPX.'); });
+  } else {
+    $('dlBtn').hidden = false;
+  }
+  $('dlBtn').addEventListener('click', function () {
+    if (!state.result) return;
+    var name = baseName();
+    if (downloads) {
+      setStatus('Conferma il salvataggio dello zip…');
+      downloads.save({ filename: name + '.zip', data: P.zipSingle(name + '.gpx', gpxText()) }).then(function (res) {
+        setStatus(res && res.status === 'delivered' ? 'File consegnato.' : 'Zip salvato: dentro c\'è ' + name + '.gpx da importare su Wikiloc.');
+      }, function (err) {
+        var code = err && err.code;
+        if (code === 'declined') setStatus('Salvataggio annullato.');
+        else if (code === 'rate_limited') setStatus('C\'è già una richiesta di salvataggio aperta.');
+        else if (code === 'extension_not_enabled' || code === 'rejected_extension') setStatus('Qui lo zip non si può salvare: usa Copia GPX.');
+        else { setStatus('Il download non è disponibile in questa vista: usa Copia GPX.'); $('dlBtn').hidden = true; }
+      });
+    } else if (!inViewer) {
+      var url = URL.createObjectURL(new Blob([gpxText()], { type: 'application/gpx+xml' }));
+      var a = document.createElement('a'); a.href = url; a.download = name + '.gpx'; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      setStatus('Salvato ' + name + '.gpx.');
+    }
+  });
+  $('copyGpx').addEventListener('click', function () { if (state.result) copy(gpxText(), $('copyGpx'), $('cueManual'), $('cueManualText')); });
+  $('copyCues').addEventListener('click', function () { if (state.result) copy(P.cueText(state.file.name, state.result), $('copyCues'), $('cueManual'), $('cueManualText')); });
+  $('copySchema').addEventListener('click', function () { if (state.schemaText) copy(state.schemaText, $('copySchema'), $('schemaManual'), $('schemaManualText')); });
+
+  /* ---------------- avvio ---------------- */
+  load();
+  bindRider();
+  bindRoute();
+  renderSchema();
+  var sample = P.sampleRoute();
+  state.file = { name: sample.name, sample: true };
+  state.base = P.prepareRoute(sample.points);
+  replan();
+  var rt = null;
+  window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (state.result) drawChart(); }, 120); });
+  var redraw = function () { if (state.result) { drawChart(); drawShape(); } };
+  if (window.matchMedia) {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    if (mq.addEventListener) mq.addEventListener('change', redraw);
+  }
+  new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+})();
+</script>
+</body>
+</html>

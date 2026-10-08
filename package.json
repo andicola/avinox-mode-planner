@@ -1,0 +1,15 @@
+{
+  "name": "avinox-mode-planner",
+  "version": "1.0.0",
+  "description": "Schema delle modalità DJI Avinox e waypoint di cambio modalità da GPX per Wikiloc, con stima della batteria.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test",
+    "build:single": "node scripts/build-single.js",
+    "serve": "npx --yes serve@14.2.4 -l 8080 ."
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
