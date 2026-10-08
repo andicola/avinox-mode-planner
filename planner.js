@@ -320,12 +320,13 @@
        modalità ne prende la sua parte in proporzione alla quota di lavoro del motore. */
     var FLAT_WH_PER_KM = 3.8, CLIMB_WH_PER_M_PER_100KG = 0.24, STEEP_PENALTY = 0.35, MARGIN = 0.22;
     var STOCK = { eco: [4, 4, 200, 50], auto: [3, 11, 1300, 130], trail: [6, 11, 1300, 130], turbo: [13, 13, 1300, 130] };
+    /* factor: consumo; torque: tetto di coppia consigliato per l'aderenza (dal calcolatore originale). */
     var SURFACES = {
-        road:      { label: 'Asfalto', factor: 1.00 },
-        gravel:    { label: 'Sterrato compatto', factor: 1.12 },
-        mixed:     { label: 'Misto MTB: terra, sassi, radici', factor: 0.2 * 1.12 + 0.4 * 1.18 + 0.4 * 1.22 },
-        technical: { label: 'Tecnico: roccia e radici', factor: 1.35 },
-        mud:       { label: 'Fango o sabbia', factor: 1.55 }
+        road:      { label: 'Asfalto', factor: 1.00, torque: 1.15 },
+        gravel:    { label: 'Sterrato compatto', factor: 1.12, torque: 1.05 },
+        mixed:     { label: 'Misto MTB: terra, sassi, radici', factor: 0.2 * 1.12 + 0.4 * 1.18 + 0.4 * 1.22, torque: 0.2 * 1.05 + 0.4 * 1.00 + 0.4 * 0.90 },
+        technical: { label: 'Tecnico: roccia e radici', factor: 1.35, torque: 0.85, soft: true },
+        mud:       { label: 'Fango o sabbia', factor: 1.55, torque: 0.95, soft: true }
     };
     function modeMixFor(c) {
         c = clamp(c, 0, 1); var f = 1 - c;
@@ -347,25 +348,37 @@
         return { mine: mine, stock: stock };
     }
 
+    /** Quota del mix DJI di serie sul terreno di un tratto: il riferimento del modello. */
+    function anchorOf(r, sh, cW) {
+        var flatWh = (r.length / 1000) * FLAT_WH_PER_KM, climbWh = r.gain * cW;
+        var mix = modeMixFor(climbWh / (flatWh + climbWh || 1));
+        return MODE_KEYS.reduce(function (s, k) { return s + mix[k] * sh.stock[k]; }, 0);
+    }
+
     /** Wh cumulati campione per campione e batteria prevista lungo il giro. */
     function energyOf(base, runs, e) {
         var sh = shares(e), sf = (SURFACES[e.surface] || SURFACES.mixed).factor;
         var cW = (CLIMB_WH_PER_M_PER_100KG * e.totalWeight) / 100;
         var factor = new Array(base.N);
         runs.forEach(function (r) {
-            var flatWh = (r.length / 1000) * FLAT_WH_PER_KM, climbWh = r.gain * cW;
-            var mix = modeMixFor(climbWh / (flatWh + climbWh || 1));
-            var anchor = MODE_KEYS.reduce(function (s, k) { return s + mix[k] * sh.stock[k]; }, 0);
+            var anchor = anchorOf(r, sh, cW);
             r.whFactor = anchor > 0 ? (sf * sh.mine[r.mode]) / anchor : sf;
             for (var i = r.i0; i <= r.i1; i++) factor[i] = r.whFactor;
         });
+        var en = energyFromFactors(base, e, factor);
+        runs.forEach(function (r) { r.wh = en.cum[r.i1] - en.cum[r.i0]; });
+        return en;
+    }
+
+    /** factor[k] = fondo × quota motore / riferimento per il campione k. */
+    function energyFromFactors(base, e, factor) {
+        var cW = (CLIMB_WH_PER_M_PER_100KG * e.totalWeight) / 100;
         var cum = new Array(base.N); cum[0] = 0;
         for (var k = 1; k < base.N; k++) {
             var dz = base.es[k] - base.es[k - 1];
             var wh = ((STEP / 1000) * FLAT_WH_PER_KM + Math.max(dz, 0) * cW) * (base.g[k] >= 12 ? 1 + STEEP_PENALTY : 1) * factor[k];
             cum[k] = cum[k - 1] + wh;
         }
-        runs.forEach(function (r) { r.wh = cum[r.i1] - cum[r.i0]; });
         var totalWh = cum[base.N - 1];
         var pctPerWh = 100 / e.batteryWh;
         var arrival = e.startPct - totalWh * pctPerWh;
@@ -412,16 +425,17 @@
             });
         });
         // rampe brevi e ripide dentro tratti con meno assistenza della fascia "Ripida"
-        var ramps = [], rs = -1;
+        // i pezzi oltre il 14% separati da meno di 100 m sono la stessa rampa
+        var ramps = [], rs = -1, lastSteep = -1;
         for (k = 0; k <= N; k++) {
             var isSteep = k < N && g[k] >= 14;
-            if (isSteep && rs < 0) rs = k;
-            if (!isSteep && rs >= 0) {
-                var len = (k - rs) * STEP, mid = ((rs + k) / 2) * STEP;
+            if (isSteep) { if (rs < 0) rs = k; lastSteep = k; continue; }
+            if (rs >= 0 && (k === N || k - lastSteep > 10)) {
+                var end = lastSteep + 1, len = (end - rs) * STEP, mid = ((rs + end) / 2) * STEP;
                 var host = runs.filter(function (r) { return mid >= r.start && mid < r.end; })[0] || runs[runs.length - 1];
                 if (len >= 80 && len <= 300 && RANK[host.mode] < RANK[mapping.steep]) {
                     var mx = -Infinity;
-                    for (var q = rs; q < k; q++) mx = Math.max(mx, g[q]);
+                    for (var q = rs; q < end; q++) mx = Math.max(mx, g[q]);
                     ramps.push({ start: rs * STEP, length: len, maxGrade: mx });
                 }
                 rs = -1;
@@ -485,6 +499,124 @@
             points: base.points, track: base.track, profile: profile,
             runs: runs, waypoints: wp.waypoints, ramps: wp.ramps, share: share,
             mapping: mapping, changes: changes, energy: energy, exhausted: exhausted
+        };
+    };
+
+    /* ---------------- tutto il giro in AUTO ---------------- */
+    function quantile(sorted, q) {
+        if (!sorted.length) return 0;
+        var i = Math.min(sorted.length - 1, Math.max(0, Math.round(q * (sorted.length - 1))));
+        return sorted[i];
+    }
+    function lerpPoints(x, pts) {
+        if (x <= pts[0][0]) return pts[0][1];
+        for (var i = 1; i < pts.length; i++) {
+            if (x <= pts[i][0]) { var a = pts[i - 1], b = pts[i]; return a[1] + ((x - a[0]) / (b[0] - a[0])) * (b[1] - a[1]); }
+        }
+        return pts[pts.length - 1][1];
+    }
+
+    /**
+     * Impostazioni di AUTO per fare tutto il giro senza cambiare modalità.
+     * e: come in plan, più wkg (i W/kg dello stile: eco, auto, trail, turbo).
+     * opts: { adapt, lead, boost }
+     *
+     * - Livello minimo: quello di AUTO nello schema (serve in piano).
+     * - Livello massimo e potenza: dimensionati sulle salite più dure del giro
+     *   (90° percentile della pendenza in salita), interpolando tra i W/kg di
+     *   AUTO (6%), TRAIL (10%) e TURBO (15%) dello stile. In app AUTO arriva al livello 11.
+     * - Coppia: potenza a 60 rpm, ridotta o alzata per l'aderenza del fondo.
+     * - Il modello fa salire l'aiuto dal minimo al massimo tra il 2% e la
+     *   pendenza delle salite più dure, come AUTO che cresce con la resistenza.
+     * - Se il giro non ci sta nella riserva, abbassa prima il massimo e poi il minimo.
+     */
+    L.autoPlan = function (base, opts, e) {
+        var g = base.g, N = base.N, k;
+        var climbs = [];
+        var steepCount = 0;
+        for (k = 0; k < N; k++) { if (g[k] >= 3) climbs.push(g[k]); if (g[k] >= 12) steepCount++; }
+        climbs.sort(function (a, b) { return a - b; });
+        var p90 = quantile(climbs, 0.9), gMax = Math.max.apply(null, g), steepShare = steepCount / N;
+        var surface = SURFACES[e.surface] || SURFACES.mixed;
+        var tuned = e.modes.auto;
+        var W = e.totalWeight, rider = e.riderW, rpm = e.rpm;
+        var gTop = Math.max(8, p90);
+
+        var wkgTop = lerpPoints(p90, [[6, e.wkg[1]], [10, e.wkg[2]], [15, e.wkg[3]]]);
+        var targetPower = clamp(Math.round(W * wkgTop), BP.auto.minPower, BIKE.maxPower);
+        var soft = !!surface.soft || steepShare >= 0.12;
+
+        function setting(lo, hi, power) {
+            var maxPower = snap(power, 50, BP.auto.minPower, BIKE.maxPower);
+            var torque = snap(Math.round(((maxPower * 9.55) / Math.min(rpm, 60)) * surface.torque), 5, 5, BIKE.maxTorque);
+            return {
+                levelMin: lo, levelMax: hi, pctMin: Math.round(ASSIST[lo] * 100), pctMax: Math.round(ASSIST[hi] * 100),
+                maxPower: maxPower, maxTorque: torque,
+                overrun: BP.auto.overrun, start: soft ? 2 : BP.auto.start, continued: BP.auto.continued, accel: soft ? 2 : BP.auto.accel
+            };
+        }
+
+        // riferimento del modello per tratti di terreno omogeneo
+        var sh = shares(e), cW = (CLIMB_WH_PER_M_PER_100KG * e.totalWeight) / 100, sf = surface.factor;
+        var refRuns = segment(base, { flat: 'eco', rolling: 'auto', climb: 'trail', steep: 'turbo', extreme: 'turbo' }, 800, 400);
+        var anchor = new Array(N);
+        refRuns.forEach(function (r) { var a = anchorOf(r, sh, cW); for (var i = r.i0; i <= r.i1; i++) anchor[i] = a; });
+        var torqueCeil = (BIKE.maxTorque * rpm) / 9.55;
+
+        function simulate(st) {
+            var lo = ASSIST[st.levelMin], hi = ASSIST[st.levelMax], factor = new Array(N);
+            for (var i = 0; i < N; i++) {
+                var t = clamp((g[i] - 2) / (gTop - 2), 0, 1);
+                var w = Math.min(st.maxPower, torqueCeil, (lo + t * (hi - lo)) * rider);
+                var shareI = motorShare(w, rider);
+                factor[i] = anchor[i] > 0 ? (sf * shareI) / anchor[i] : sf;
+            }
+            return energyFromFactors(base, e, factor);
+        }
+
+        var minLevel = tuned.levelMin;
+        var maxLevel = clamp(nearestLevel(targetPower / rider, 3, 11), minLevel, 11);
+        var proposed = setting(minLevel, maxLevel, targetPower);
+        var current = proposed, energy = simulate(current), steps = [], exhausted = false;
+        if (opts.adapt && !energy.fits) {
+            var lo = minLevel, hi = maxLevel;
+            while (!energy.fits) {
+                if (hi > lo) hi--;
+                else if (lo > 3) { lo--; hi = lo; }
+                else { exhausted = true; break; }
+                var power = Math.min(targetPower, Math.max(BP.auto.minPower, ASSIST[hi] * rider));
+                current = setting(lo, hi, power);
+                energy = simulate(current);
+            }
+            steps.push({ from: proposed, to: current });
+        }
+        var tunedSetting = setting(tuned.levelMin, tuned.levelMax, tuned.maxPower);
+        tunedSetting.maxTorque = tuned.maxTorque; tunedSetting.start = tuned.start; tunedSetting.accel = tuned.accel;
+
+        var run = { mode: 'auto', start: 0, end: base.total, i0: 0, i1: N - 1, length: base.total, gain: base.gain, loss: base.loss, maxGrade: gMax };
+        var wp = buildWaypoints(base, [run], { steep: 'turbo' }, opts, energy);
+        var startWp = wp.waypoints.filter(function (w) { return w.kind === 'start'; })[0];
+        if (startWp) {
+            var after = startWp.desc.indexOf(' Subito dopo:') >= 0 ? startWp.desc.slice(startWp.desc.indexOf(' Subito dopo:')) : '';
+            startWp.name = 'START · AUTO ' + current.levelMin + '–' + current.levelMax + ' · ' + current.maxPower + ' W';
+            startWp.desc = 'km 0,0: tutto il giro in AUTO, livelli ' + current.levelMin + '–' + current.levelMax + ', potenza max ' +
+                current.maxPower + ' W, coppia max ' + current.maxTorque + ' Nm.' + after;
+        }
+        var profile = [];
+        for (k = 0; k < N; k += base.stride) profile.push({ d: k * STEP, ele: base.es[k], pct: e.startPct - energy.cum[k] * 100 / e.batteryWh });
+        if (profile[profile.length - 1].d !== (N - 1) * STEP) profile.push({ d: (N - 1) * STEP, ele: base.es[N - 1], pct: energy.arrivalPct });
+
+        return {
+            strategy: 'auto',
+            total: base.total, gain: base.gain, loss: base.loss, minEle: base.minEle, maxEle: base.maxEle,
+            points: base.points, track: base.track, profile: profile,
+            runs: [run], waypoints: wp.waypoints, ramps: wp.ramps, share: { eco: 0, auto: base.total, trail: 0, turbo: 0 },
+            mapping: null, changes: [], energy: energy, exhausted: exhausted,
+            auto: {
+                setting: current, proposed: proposed, tuned: tunedSetting, tunedEnergy: simulate(tunedSetting),
+                adapted: steps.length > 0, p90: p90, gMax: gMax, steepShare: steepShare, soft: soft,
+                surface: surface, targetPower: targetPower, levelCapped: nearestLevel(targetPower / rider, 3, 15) > 11
+            }
         };
     };
 

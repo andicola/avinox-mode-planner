@@ -98,3 +98,27 @@ test('zip valido con un solo file', () => {
   assert.equal(Buffer.from(buf.slice(30, 30 + nameLen)).toString(), 'prova.gpx');
   assert.equal(Buffer.from(buf.slice(30 + nameLen, 30 + nameLen + 6)).toString(), '<gpx/>');
 });
+
+test('tutto in AUTO: impostazioni nei limiti dell\'app e adattamento alla riserva', () => {
+  const base = P.prepareRoute(P.sampleRoute().points);
+  const modes = P.calcModes({ riderWeight: 87, bikeWeight: 24.2, cadence: 80, riderPower: 140, wkg: BAL });
+  const e = (extra) => Object.assign(energyFor(modes, { riderW: 140, rpm: 80 }), { wkg: BAL }, extra || {});
+
+  const r = P.autoPlan(base, { adapt: true, lead: 100, boost: false }, e());
+  const st = r.auto.setting;
+  assert.ok(st.levelMin >= 3 && st.levelMax <= 11 && st.levelMin <= st.levelMax, `livelli ${st.levelMin}-${st.levelMax}`);
+  assert.ok(st.maxPower % 50 === 0 && st.maxPower >= 200 && st.maxPower <= 1300);
+  assert.ok(st.maxTorque % 5 === 0 && st.maxTorque <= 130);
+  assert.ok(st.levelMax >= modes.modes.auto.levelMax, 'su un giro con salite ripide AUTO deve salire oltre quella della scheda');
+  assert.equal(r.waypoints[0].kind, 'start');
+  assert.ok(r.energy.fits);
+
+  const strict = P.autoPlan(base, { adapt: true, lead: 100, boost: false }, e({ reservePct: 40 }));
+  assert.ok(strict.energy.fits);
+  assert.ok(strict.auto.adapted);
+  assert.ok(strict.auto.setting.levelMax < st.levelMax);
+
+  const impossible = P.autoPlan(base, { adapt: true, lead: 100, boost: false }, e({ startPct: 60, reservePct: 50 }));
+  assert.ok(impossible.exhausted);
+  assert.equal(impossible.auto.setting.levelMin, 3);
+});

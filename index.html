@@ -90,6 +90,17 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 .seg button:last-child { border-right: 0; }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
 .seg.four { grid-template-columns: repeat(4, 1fr); }
+.seg.two { grid-template-columns: 1fr 1fr; }
+.strategy { display: grid; gap: 6px; margin-top: 12px; padding: 14px 18px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); }
+.strategy .seg button { padding: 10px 8px; font-size: 15px; }
+.strategy .hint { margin: 0; }
+.auto-card { margin-top: 14px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); overflow: hidden; }
+.auto-card .auto-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 16px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.auto-card .auto-head h3 { font-size: 22px; font-weight: 600; text-transform: uppercase; }
+.auto-card .auto-head .meta { font-family: var(--f-data); font-size: 12.5px; color: var(--muted); }
+.auto-card .mrow { border-bottom: 1px solid var(--line); }
+.auto-why { margin: 0; padding: 12px 18px 14px 36px; display: grid; gap: 6px; font-size: 14px; color: var(--muted); background: var(--bg); }
+.auto-why b { color: var(--ink); font-weight: 600; }
 .effort-est { font-family: var(--f-data); font-size: 12.5px; color: var(--ink); }
 .manual-in { display: grid; gap: 8px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 5px; }
 .why { font-size: 13.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
@@ -305,6 +316,15 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
       <div class="error" id="routeError" hidden></div>
     </div>
 
+    <div class="strategy">
+      <span class="lbl" id="stratLbl" style="font-size:13px;font-weight:600;color:var(--muted)">Come vuoi fare il giro</span>
+      <div class="seg two" role="group" aria-labelledby="stratLbl" id="stratSeg">
+        <button type="button" data-strategy="waypoint" aria-pressed="true">Cambio modalità con gli avvisi</button>
+        <button type="button" data-strategy="auto" aria-pressed="false">Tutto in AUTO</button>
+      </div>
+      <p class="hint" id="stratHint"></p>
+    </div>
+
     <div class="opts">
       <fieldset class="grp grp-map">
         <legend>Modalità per pendenza</legend>
@@ -325,13 +345,13 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
         <div class="field"><label for="reservePct">Batteria residua all'arrivo</label>
           <div class="slider"><input type="range" id="reservePct" min="0" max="60" step="5" value="15"><output id="reserveOut" for="reservePct">15%</output></div></div>
         <div class="field"><label for="surface">Fondo prevalente</label><select id="surface"></select></div>
-        <label class="check" for="adaptChk"><input type="checkbox" id="adaptChk" checked> Se non basta, abbassa le modalità per arrivare con questa riserva</label>
+        <label class="check" for="adaptChk"><input type="checkbox" id="adaptChk" checked> <span id="adaptTxt">Se non basta, abbassa le modalità per arrivare con questa riserva</span></label>
       </fieldset>
 
       <fieldset class="grp">
         <legend>Avvisi</legend>
         <div class="two">
-          <div class="field"><label for="sens">Quanti avvisi</label>
+          <div class="field" id="sensField"><label for="sens">Quanti avvisi</label>
             <select id="sens"><option value="alta">Molti</option><option value="media" selected>Equilibrati</option><option value="bassa">Pochi</option></select>
             <span class="hint" id="sensHint"></span></div>
           <div class="field"><label for="lead">Anticipo sulle salite</label>
@@ -344,6 +364,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 
     <div class="summary" id="summary"></div>
     <div class="plan-note" id="planNote"></div>
+    <div class="auto-card" id="autoCard" hidden></div>
     <div class="chart" id="chart"></div>
 
     <div class="route-grid">
@@ -401,7 +422,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 
   var state = {
     rider: { riderWeight: 82, bikeWeight: 24.2, battery: 'RS800', style: 'bilanciato', effort: 'normale', riderPower: 150, cadence: 80 },
-    route: { mapping: Object.assign({}, DEFAULT_MAP), sens: 'media', lead: 100, boost: false, startPct: 100, reservePct: 15, surface: 'mixed', adapt: true },
+    route: { strategy: 'waypoint', mapping: Object.assign({}, DEFAULT_MAP), sens: 'media', lead: 100, boost: false, startPct: 100, reservePct: 15, surface: 'mixed', adapt: true },
     modes: null, file: null, base: null, result: null, schemaText: ''
   };
 
@@ -524,8 +545,26 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
   }
 
   /* ---------------- percorso ---------------- */
+  function renderStrategy() {
+    var auto = state.route.strategy === 'auto';
+    Array.prototype.forEach.call(document.querySelectorAll('#stratSeg button'), function (b) {
+      b.setAttribute('aria-pressed', b.dataset.strategy === state.route.strategy ? 'true' : 'false');
+    });
+    document.querySelector('.grp-map').hidden = auto;
+    $('sensField').hidden = auto;
+    $('adaptTxt').textContent = auto ? 'Se non basta, abbassa i livelli di AUTO per arrivare con questa riserva'
+      : 'Se non basta, abbassa le modalità per arrivare con questa riserva';
+    $('stratHint').textContent = auto
+      ? 'Imposti AUTO una volta per questo giro e non cambi più modalità: la scheda sotto ti dice come regolarla.'
+      : 'Ogni fascia di pendenza ha la sua modalità e l\'orologio ti avvisa quando cambiarla.';
+  }
+
   function bindRoute() {
     var R = state.route;
+    Array.prototype.forEach.call(document.querySelectorAll('#stratSeg button'), function (b) {
+      b.addEventListener('click', function () { R.strategy = b.dataset.strategy; renderStrategy(); save(); replan(); });
+    });
+    renderStrategy();
     Array.prototype.forEach.call(document.querySelectorAll('#mapGrid select'), function (s) {
       s.innerHTML = P.MODE_KEYS.map(function (k) { return '<option value="' + k + '">' + LABEL[k] + '</option>'; }).join('');
       var band = s.dataset.band;
@@ -575,7 +614,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
   function energyParams(modesRes) {
     var r = state.rider, R = state.route;
     if (!modesRes) return null;
-    return { modes: modesRes.modes, totalWeight: modesRes.totalWeight, riderW: riderPower(), rpm: riderCadence(),
+    return { modes: modesRes.modes, totalWeight: modesRes.totalWeight, riderW: riderPower(), rpm: riderCadence(), wkg: P.PRESETS[r.style].wkg,
       batteryWh: BATTERY_WH[r.battery] || 800, startPct: R.startPct, reservePct: R.reservePct, surface: R.surface };
   }
   function planOpts() {
@@ -585,7 +624,10 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 
   function replan() {
     if (!state.base) return;
-    state.result = P.plan(state.base, planOpts(), energyParams(state.modes));
+    var e = energyParams(state.modes), R = state.route;
+    state.result = (R.strategy === 'auto' && e)
+      ? P.autoPlan(state.base, { adapt: R.adapt, lead: R.lead, boost: R.boost }, e)
+      : P.plan(state.base, planOpts(), e);
     renderRoute();
   }
 
@@ -606,7 +648,8 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     var stat = function (k, v, cls, s) { sum.appendChild(el('div', 'stat', '<span class="k">' + k + '</span><span class="v' + (cls ? ' ' + cls : '') + '">' + v + '</span>' + (s ? '<span class="s">' + s + '</span>' : ''))); };
     stat('Distanza', P.fmtKm(r.total) + ' km');
     stat('Dislivello', '+' + Math.round(r.gain) + ' m');
-    stat('Cambi', String(changes));
+    if (r.auto) stat('AUTO', r.auto.setting.levelMin + '–' + r.auto.setting.levelMax, '', r.auto.setting.maxPower + ' W · ' + r.auto.setting.maxTorque + ' Nm');
+    else stat('Cambi', String(changes));
     if (en) {
       stat('Consumo', Math.round(en.totalWh) + ' Wh', '', Math.round(en.low) + '–' + Math.round(en.high) + ' Wh');
       stat('Arrivo', '~' + Math.round(en.arrivalPct) + '%', en.fits ? 'ok' : 'bad',
@@ -626,13 +669,63 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     sum.appendChild(share);
 
     renderPlanNote();
+    renderAutoCard();
     drawChart(); drawShape(); renderCues();
+  }
+
+  function autoText(st) {
+    return 'AUTO  livelli ' + st.levelMin + '–' + st.levelMax + ' · ' + st.maxPower + ' W · ' + st.maxTorque + ' Nm · overrun ' + st.overrun +
+      ' · avvio ' + st.start + ' · continuità ' + st.continued + ' · accelerazione ' + st.accel;
+  }
+
+  function renderAutoCard() {
+    var r = state.result, box = $('autoCard');
+    box.hidden = !r.auto;
+    if (!r.auto) { box.innerHTML = ''; return; }
+    var a = r.auto, st = a.setting, en = r.energy, R = state.route;
+    var pct = function (x) { return Math.max(0, Math.round(x)) + '%'; };
+    var why = [];
+    why.push('<b>Livello massimo e potenza</b> dimensionati sulle salite più dure: il 90% dei tratti in salita resta sotto il ' + Math.round(a.p90) +
+      '%, la punta arriva al ' + Math.round(a.gMax) + '%.');
+    why.push('<b>Livello minimo ' + st.levelMin + '</b>: è quello che lavora in piano e sugli ondulati' + (st.levelMin === a.tuned.levelMin ? ', lo stesso dell\'AUTO nella scheda.' : '.'));
+    if (a.levelCapped && !a.adapted) why.push('Nell\'app AUTO arriva al livello 11: sui tratti più ripidi, se serve più spinta, usa il Boost.');
+    var tf = a.surface.torque;
+    if (Math.abs(tf - 1) >= 0.02) why.push('<b>Coppia</b> ' + (tf < 1 ? 'ridotta' : 'alzata') + ' del ' + Math.round(Math.abs(1 - tf) * 100) + '% per l\'aderenza del fondo (' + a.surface.label.charAt(0).toLowerCase() + a.surface.label.slice(1) + ').');
+    if (a.soft) why.push('<b>Avvio 2 e accelerazione 2</b>: spinta più dolce in partenza, per non perdere aderenza su fondo tecnico o rampe molto ripide.');
+    if (a.adapted && !r.exhausted) {
+      why.push('Per arrivare con almeno il ' + R.reservePct + '% ho abbassato AUTO da livelli ' + a.proposed.levelMin + '–' + a.proposed.levelMax + ', ' +
+        a.proposed.maxPower + ' W a livelli ' + st.levelMin + '–' + st.levelMax + ', ' + st.maxPower + ' W.');
+    }
+    why.push('Con l\'AUTO della scheda (livelli ' + a.tuned.levelMin + '–' + a.tuned.levelMax + ', ' + a.tuned.maxPower + ' W) consumeresti ~' +
+      Math.round(a.tunedEnergy.totalWh) + ' Wh e arriveresti al ~' + pct(a.tunedEnergy.arrivalPct) + '.');
+    var range = st.levelMin !== st.levelMax;
+    box.innerHTML = '<div class="auto-head"><div><h3>AUTO per questo giro</h3><div class="meta">Consumo ~' + Math.round(en.totalWh) +
+      ' Wh · arrivo ~' + pct(en.arrivalPct) + ' · riserva ' + R.reservePct + '%</div></div><button type="button" class="btn" id="copyAuto">Copia AUTO</button></div>' +
+      '<div class="mrow mode-auto"><div class="mname"><b>AUTO</b><span>' + (range ? 'range' : 'fisso') + '</span></div>' +
+      '<div class="cell c1"><span class="k">' + (range ? 'Livelli' : 'Livello') + '</span><span class="v">' + (range ? st.levelMin + '–' + st.levelMax : st.levelMin) +
+      '</span><span class="s">' + (range ? st.pctMin + '–' + st.pctMax : st.pctMin) + '%</span></div>' +
+      '<div class="cell"><span class="k">Potenza max</span><span class="v">' + st.maxPower + '<small>W</small></span><span class="s">' + (st.maxPower / state.modes.totalWeight).toFixed(2).replace('.', ',') + ' W/kg</span></div>' +
+      '<div class="cell"><span class="k">Coppia max</span><span class="v">' + st.maxTorque + '<small>Nm</small></span><span class="s">&nbsp;</span></div>' +
+      '<div class="dyn"><span>Overrun <b>' + st.overrun + '</b></span><span>Avvio <b>' + st.start + '</b></span><span>Continuità <b>' + st.continued +
+      '</b></span><span>Accelerazione <b>' + st.accel + '</b></span></div></div>' +
+      '<ul class="auto-why">' + why.map(function (w) { return '<li>' + w + '</li>'; }).join('') + '</ul>' +
+      '<div class="manual" id="autoManual" hidden><textarea id="autoManualText" readonly aria-label="Impostazioni AUTO da copiare"></textarea></div>';
+    $('copyAuto').addEventListener('click', function () {
+      copy(state.file.name + ' – ' + autoText(st), $('copyAuto'), $('autoManual'), $('autoManualText'));
+    });
   }
 
   function renderPlanNote() {
     var r = state.result, en = r.energy, box = $('planNote'), R = state.route;
     box.innerHTML = '';
     if (!en) { box.appendChild(el('p', 'callout', 'Correggi i dati della scheda modalità per vedere la stima della batteria.')); return; }
+    if (r.auto) {
+      if (r.exhausted) box.appendChild(el('p', 'callout', esc('Anche con AUTO al livello più basso arrivi intorno al ' + Math.max(0, Math.round(en.arrivalPct)) +
+        '%, sotto il ' + R.reservePct + '% che vuoi. Parti più carico, accorcia il giro o abbassa la riserva.')));
+      else if (!en.fits) box.appendChild(el('p', 'callout', esc('Con questa AUTO arrivi intorno al ' + Math.round(en.arrivalPct) + '%, sotto la riserva del ' +
+        R.reservePct + '%. Attiva "abbassa i livelli di AUTO" per adattarla.')));
+      return;
+    }
     var list = r.changes.map(function (c) { return BAND_LABEL[c.band] + ' ' + LABEL[c.from] + ' → ' + LABEL[c.to]; }).join(', ');
     if (r.exhausted) {
       var msg = 'Anche facendo tutto in ECO arrivi intorno al ' + Math.max(0, Math.round(en.arrivalPct)) + '%, sotto il ' + R.reservePct + '% che vuoi.';
@@ -779,7 +872,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     list.innerHTML = '';
     r.waypoints.forEach(function (w, i) {
       var li = el('li', 'cue mode-' + w.mode);
-      var rest = w.name.replace(/^START · /, '').split(' · ').slice(1).join(' · ');
+      var rest = w.name.replace(/^START · /, '').replace(/^(ECO|AUTO|TRAIL|TURBO|BOOST)\s*(· )?/, '');
       var head = (w.kind === 'start' ? '<span class="tag" style="margin:0 6px 0 0">start</span>' : '') + '<b>' + LABEL[w.mode] + '</b><span class="rest">' + esc(rest) + '</span>';
       var batt = w.battery != null ? '<i class="' + (en && w.battery < en.reservePct ? 'low' : '') + '">~' + Math.max(0, Math.round(w.battery)) + '%</i>' : '';
       var desc = w.desc.replace(/^km [\d,]+: /, '').replace(/ Batteria prevista ~\d+%\./, '');

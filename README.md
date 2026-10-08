@@ -48,6 +48,18 @@ Tutto gira nel browser: il file GPX non viene caricato da nessuna parte.
 - I tratti troppo corti vengono assorbiti dal vicino più simile. Una salita che alza l'assistenza resta se è lunga almeno 300/400/600 m (avvisi molti/equilibrati/pochi). Gli altri tratti devono arrivare a 500/800/1200 m.
 - Il waypoint di una salita arriva con un anticipo regolabile (0–200 m). Facoltativo: avvisi per le rampe brevi (80–300 m oltre il 14%) da fare col Boost.
 
+### Tutto in AUTO
+
+In alternativa ai cambi di modalità puoi scegliere **Tutto in AUTO**: la pagina ti dice come regolare AUTO per quel giro, così parti e non cambi più.
+
+- **Livello minimo**: quello di AUTO nello schema, che lavora in piano e sugli ondulati.
+- **Livello massimo e potenza**: dimensionati sulle salite più dure del giro (90° percentile della pendenza in salita), interpolando i W/kg dello stile tra AUTO (6%), TRAIL (10%) e TURBO (15%). Nell'app AUTO arriva al livello 11.
+- **Coppia**: la potenza a 60 rpm, corretta per l'aderenza del fondo come nel calcolatore originale (−15% su roccia, +15% su asfalto).
+- **Avvio e accelerazione** più dolci (2) su fondo tecnico o fango, o quando oltre il 12% dei tratti è ripido.
+- **Batteria**: il modello fa crescere l'aiuto dal livello minimo al massimo tra il 2% e la pendenza delle salite più dure. Se il giro non ci sta nella riserva, abbassa prima il livello massimo, poi il minimo.
+
+La pagina mostra anche quanto consumeresti con l'AUTO dello schema, per confronto. Il GPX contiene solo il waypoint di partenza con le impostazioni e, se li attivi, gli avvisi per le rampe da Boost.
+
 ### Batteria
 
 Usa lo stesso modello di consumo del calcolatore originale, applicato tratto per tratto:
