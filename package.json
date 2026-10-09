@@ -12,6 +12,6 @@
     "i18n:prefill": "node scripts/prefill-i18n.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.5"
   }
 }
