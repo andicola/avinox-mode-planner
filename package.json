@@ -7,7 +7,8 @@
   "scripts": {
     "test": "node --test",
     "build:single": "node scripts/build-single.js",
-    "serve": "npx --yes serve@14.2.4 -l 8080 ."
+    "serve": "npx --yes serve@14.2.4 -l 8080 .",
+    "build:site": "node scripts/build-site.js"
   },
   "engines": {
     "node": ">=18"

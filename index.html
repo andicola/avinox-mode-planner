@@ -193,6 +193,9 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 .install { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); padding: 16px 18px; }
 .install ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
 .install code { font-family: var(--f-data); font-size: 13px; overflow-wrap: anywhere; }
+.data-io { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); padding: 16px 18px; }
+.move { display: grid; gap: 8px; font-size: 15px; }
+.move a { color: inherit; font-weight: 700; }
 .plan-note:empty { display: none; }
 
 .chart { margin-top: 14px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); padding: 8px 6px 4px; }
@@ -254,6 +257,10 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 </head>
 <body>
 <div class="wrap">
+  <div class="callout move" id="moveBanner" hidden>
+    <p>L'app ha un nuovo indirizzo: <a id="moveLink" href="#" target="_blank" rel="noopener"></a>. Per portare là impostazioni e giri di taratura tocca <b>Esporta dati</b> qui, poi <b>Importa dati</b> nella nuova app. Se l'avevi aggiunta alla schermata Home, aggiungi anche quella nuova.</p>
+    <div><button type="button" class="btn" id="moveExport">Esporta dati</button></div>
+  </div>
   <header class="mast">
     <div class="eyebrow">Amflow PR Carbon Pro · Avinox M2S</div>
     <h1><svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true">
@@ -461,6 +468,16 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     </ol>
   </section>
 
+  <section class="data-io" aria-labelledby="h-data">
+    <h2 id="h-data" style="font-size:22px;font-weight:600;text-transform:uppercase">I tuoi dati</h2>
+    <p class="hint" style="font-size:14px">Impostazioni e giri di taratura restano solo in questo browser. Per portarli su un altro telefono o su un nuovo indirizzo dell'app: esporta qui e importa di là.</p>
+    <div class="actions">
+      <button type="button" class="btn" id="exportBtn">Esporta dati</button>
+      <label class="btn file-btn" for="importFile">Importa dati<input type="file" id="importFile" accept=".json,application/json"></label>
+    </div>
+    <p class="hint" id="dataMsg" role="status"></p>
+  </section>
+
   <footer class="foot">
     <p>Calcolo delle modalità e modello di consumo: porting lato browser di <a href="https://github.com/lucad87/avinox-setup-app" target="_blank" rel="noopener">avinox-setup-app</a> di Luca Donnaloia (licenza MIT, <a href="https://avinox-calculator.lucad.cloud/" target="_blank" rel="noopener">versione online</a>), applicato tratto per tratto. Le percentuali per livello sono dati della community, non specifiche DJI; la stima della batteria ha un margine di circa ±22%.</p>
     <p>Il file GPX viene letto solo nel browser e non viene caricato da nessuna parte.</p>
@@ -490,6 +507,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     modes: null, file: null, base: null, result: null, schemaText: '', osm: null, rides: []
   };
   var RIDES_KEY = 'avinox-mode-planner-rides';
+  var NEW_HOME = '';   // indirizzo principale dell'app, se diverso da GitHub Pages
   function loadRides() {
     try { var a = JSON.parse(localStorage.getItem(RIDES_KEY) || '[]'); state.rides = Array.isArray(a) ? a : []; } catch (e) { state.rides = []; }
   }
@@ -1139,6 +1157,50 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
       setStatus('Salvato ' + name + '.gpx.');
     }
   });
+  /* ---------------- esporta / importa i dati ---------------- */
+  function exportData() {
+    var text = JSON.stringify({ app: 'avinox-mode-planner', version: 1, exportedAt: new Date().toISOString(),
+      settings: { rider: state.rider, route: state.route }, rides: state.rides }, null, 2);
+    var name = 'avinox-planner-dati.json', msg = $('dataMsg');
+    if (downloads) {
+      downloads.save({ filename: name, data: text }).then(function () { msg.textContent = 'Dati esportati in ' + name + '.'; },
+        function (err) { msg.textContent = err && err.code === 'declined' ? 'Esportazione annullata.' : 'Qui non posso salvare file: apri l\'app dal suo indirizzo.'; });
+    } else if (!inViewer) {
+      var url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      var a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      msg.textContent = 'Dati esportati in ' + name + ': ora aprilo dalla nuova app con Importa dati.';
+    } else {
+      msg.textContent = 'Qui non posso salvare file: apri l\'app dal suo indirizzo.';
+    }
+  }
+  $('exportBtn').addEventListener('click', exportData);
+  $('moveExport').addEventListener('click', function () { exportData(); $('h-data').scrollIntoView({ behavior: 'smooth' }); });
+  $('importFile').addEventListener('change', function () {
+    var f = $('importFile').files[0], msg = $('dataMsg');
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var d = JSON.parse(String(reader.result));
+        if (!d || d.app !== 'avinox-mode-planner' || !d.settings) throw new Error('formato');
+        localStorage.setItem(STORE_KEY, JSON.stringify({ rider: d.settings.rider || {}, route: d.settings.route || {} }));
+        localStorage.setItem(RIDES_KEY, JSON.stringify(Array.isArray(d.rides) ? d.rides : []));
+        msg.textContent = 'Dati importati: ricarico l\'app.';
+        setTimeout(function () { location.reload(); }, 600);
+      } catch (e) {
+        msg.textContent = e.message === 'formato' ? 'Questo file non è un\'esportazione di Avinox Mode Planner.' : 'Non riesco a importare i dati: il file è valido? Il browser permette di salvare dati?';
+      }
+    };
+    reader.readAsText(f);
+    $('importFile').value = '';
+  });
+  // vecchio indirizzo: invito a spostarsi sul nuovo portando i dati
+  if (NEW_HOME && location.hostname === 'andicola.github.io') {
+    $('moveLink').href = NEW_HOME; $('moveLink').textContent = NEW_HOME.replace(/^https:\/\//, '').replace(/\/$/, '');
+    $('moveBanner').hidden = false;
+  }
+
   $('copyGpx').addEventListener('click', function () { if (state.result) copy(gpxText(), $('copyGpx'), $('cueManual'), $('cueManualText')); });
   $('copyCues').addEventListener('click', function () { if (state.result) copy(P.cueText(state.file.name, state.result), $('copyCues'), $('cueManual'), $('cueManualText')); });
   $('copySchema').addEventListener('click', function () { if (state.schemaText) copy(state.schemaText, $('copySchema'), $('schemaManual'), $('schemaManualText')); });
