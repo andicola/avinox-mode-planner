@@ -9,7 +9,7 @@ Pagina web per chi pedala con un motore **DJI Avinox M2 o M2S** (sviluppata su u
 
 La bici non può cambiare modalità da sola in base al percorso. Il piano serve a dirti quando cambiarla, con pochi avvisi mirati: AUTO regola già l'assistenza dentro il suo range.
 
-Tutto gira nel browser: il file GPX non viene caricato da nessuna parte. È gratis e senza pubblicità; se ti è utile puoi [offrirmi un caffè su Ko-fi](https://ko-fi.com/andicola).
+Tutto gira nel browser: il file GPX non viene caricato da nessuna parte. È gratis e senza pubblicità; se ti è utile puoi offrirmi un caffè dalla pagina (3, 5 o 10 € o importo libero, con Apple Pay o carta tramite Stripe) oppure su [Ko-fi](https://ko-fi.com/andicola).
 
 ## Come si usa
 
@@ -100,7 +100,7 @@ npm run build:single   # dist/avinox-mode-planner.html
 ```
 
 - `index.html`: struttura e stile della pagina. I testi italiani dentro gli elementi con `data-i18n` vengono da `i18n.js`: dopo aver cambiato un testo esegui `npm run i18n:prefill` (i test controllano che siano allineati).
-- `app.js`: logica dell'interfaccia (JS senza framework). Le donazioni si configurano in cima al file (`DONATE`): con i Payment Link di Stripe compaiono gli importi da pagare con Apple Pay, Google Pay o carta; senza link resta Ko-fi. Ogni link deve rimandare a `https://avinox-planner.pages.dev/?grazie=1`, che mostra il ringraziamento.
+- `app.js`: logica dell'interfaccia (JS senza framework). Le donazioni si configurano in cima al file (`DONATE`): con i Payment Link di Stripe compaiono gli importi da pagare con Apple Pay o carta; senza link resta Ko-fi. Ogni link deve rimandare a `https://avinox-planner.pages.dev/?grazie=1`, che mostra il ringraziamento.
 - `i18n.js`: tutti i testi dell'interfaccia in italiano e in inglese, con le stesse chiavi (verificato dai test).
 - `planner.js`: calcolo delle modalità, lettura GPX/KML, tratti, energia, taratura, export GPX e zip, testi dei waypoint nelle due lingue. Funziona sia nel browser sia in Node.
 - `surface-osm.js`: lettura del fondo da OpenStreetMap (dal calcolatore originale).
@@ -117,7 +117,7 @@ Non c'è backend: la pagina è statica e tutti i calcoli girano nel browser. `np
 
 ## Sostieni il progetto
 
-L'app è gratuita, senza pubblicità e senza raccolta di dati. Se ti è utile puoi offrirmi un caffè su [Ko-fi](https://ko-fi.com/andicola) (con la carta, senza registrazione): il pulsante **Sostieni il progetto** è anche in alto nella pagina.
+L'app è gratuita, senza pubblicità e senza raccolta di dati. Se ti è utile puoi offrirmi un caffè: il pulsante **Sostieni il progetto** in alto porta agli importi (3, 5, 10 € o libero) che si pagano su Stripe con Apple Pay o carta, senza registrarsi. In alternativa c'è [Ko-fi](https://ko-fi.com/andicola).
 
 ## Crediti e licenza
 

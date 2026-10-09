@@ -15,8 +15,12 @@
      Finché i link sono vuoti resta il pulsante di Ko-fi. */
   var DONATE = {
     kofi: 'https://ko-fi.com/andicola',
-    amounts: [{ eur: 3, url: '' }, { eur: 5, url: '' }, { eur: 10, url: '' }],
-    custom: ''
+    amounts: [
+      { eur: 3, url: 'https://buy.stripe.com/7sYfZi9Ehg1r9i57vE7IY00' },
+      { eur: 5, url: 'https://buy.stripe.com/fZu6oIbMpg1rbqd03c7IY01' },
+      { eur: 10, url: 'https://buy.stripe.com/7sYfZibMp2aBcuh5nw7IY02' }
+    ],
+    custom: 'https://buy.stripe.com/aFa8wQ5o1bLbdylcPY7IY03'
   };
   /* Spinta stimata dal peso del ciclista quando potenza e cadenza non sono note. */
   var EFFORT = { poco: { wkg: 1.2 }, normale: { wkg: 1.6 }, tanto: { wkg: 2.2 } };
