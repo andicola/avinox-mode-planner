@@ -9,7 +9,7 @@ Pagina web per chi pedala con un motore **DJI Avinox M2 o M2S** (sviluppata su u
 
 La bici non può cambiare modalità da sola in base al percorso. Il piano serve a dirti quando cambiarla, con pochi avvisi mirati: AUTO regola già l'assistenza dentro il suo range.
 
-Tutto gira nel browser: il file GPX non viene caricato da nessuna parte. È gratis e senza pubblicità; se ti è utile puoi offrirmi un caffè dalla pagina (3, 5 o 10 € o importo libero, con Apple Pay o carta tramite Stripe) oppure su [Ko-fi](https://ko-fi.com/andicola).
+Tutto gira nel browser: il file GPX non viene caricato da nessuna parte (si contano solo, in forma anonima, visite e funzioni usate). È gratis e senza pubblicità; se ti è utile puoi offrirmi un caffè dalla pagina (3, 5 o 10 € o importo libero, con Apple Pay o carta tramite Stripe) oppure su [Ko-fi](https://ko-fi.com/andicola).
 
 ## Come si usa
 
@@ -92,6 +92,16 @@ Con un GPX caricato, **Leggi il fondo da OpenStreetMap** invia a Overpass solo p
 
 Dopo un giro fatto seguendo il piano, scrivi la batteria alla partenza e all'arrivo e salva. Il fattore del giro è il consumo vero (in Wh, con la stessa correzione per il freddo) diviso per la stima del modello senza taratura. Le stime successive usano la mediana dei fattori tra 0,5 e 1,5; quelli fuori scala restano in lista ma non contano. I giri sono salvati solo nel browser.
 
+### Statistiche anonime
+
+Sull'indirizzo pubblico (e solo lì) la pagina conta in forma anonima visite e funzioni usate, per capire cosa migliorare:
+
+- **Visite**: [Cloudflare Web Analytics](https://www.cloudflare.com/web-analytics/), senza cookie. Visite, paesi, provenienza e dispositivi si vedono nella dashboard di Cloudflare.
+- **Funzioni usate**: `app.js` invia a `/api/e` solo il nome dell'azione e un dettaglio corto (per esempio `gpx_download` + `auto`, oppure `setup` + `M2S/RS800`). La Pages Function `functions/api/e.js` somma per giorno nel database D1 `avinox-planner-stats` (tabella in `db/schema.sql`): niente IP, user agent, cookie o identificativi.
+- **Pagina /stats**: `functions/stats.js` mostra i contatori (aperture al giorno, funzioni usate, motore e batteria, lingua, app installata, donazioni). È protetta da un'applicazione Cloudflare Access e la Function verifica comunque il token di Access (variabili `ACCESS_TEAM` e `ACCESS_AUD`, binding `DB`).
+
+Le azioni accettate sono elencate in `functions/api/e.js`; i test controllano che `app.js` non ne usi altre.
+
 ## Sviluppo
 
 ```sh
@@ -106,7 +116,8 @@ npm run build:single   # dist/avinox-mode-planner.html
 - `surface-osm.js`: lettura del fondo da OpenStreetMap (dal calcolatore originale).
 - `manifest.webmanifest`, `sw.js`, `icons/`: app installabile e funzionamento offline. Le icone si rigenerano con `python3 scripts/make-icons.py` (serve Playwright).
 - `og-image.png`: anteprima dei link su Facebook, WhatsApp e simili (1200×630), rigenerabile con `python3 scripts/make-og-image.py`.
-- `test/`: test del calcolo (M2S e M2), del piano, della batteria, della taratura, del GPX, dello zip, delle traduzioni e della pagina.
+- `functions/`: Pages Functions per i contatori anonimi (`api/e.js`) e la pagina delle statistiche (`stats.js`); `db/schema.sql` è la tabella D1.
+- `test/`: test del calcolo (M2S e M2), del piano, della batteria, della taratura, del GPX, dello zip, delle traduzioni, della pagina e delle Functions (con SQLite in memoria al posto di D1).
 
 ### Pubblicazione
 

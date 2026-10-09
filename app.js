@@ -10,6 +10,10 @@
   var RIDES_KEY = 'avinox-mode-planner-rides';
   var LANG_KEY = 'avinox-mode-planner-lang';
   var NEW_HOME = 'https://avinox-planner.pages.dev/';   // indirizzo principale dell'app (Cloudflare Pages)
+  /* Statistiche anonime, solo sull'indirizzo pubblico: Cloudflare Web Analytics per le visite (senza cookie)
+     e /api/e per contare le funzioni usate (nome dell'azione e un dettaglio corto, nessun dato personale). */
+  var STATS_HOST = 'avinox-planner.pages.dev';
+  var CF_BEACON_TOKEN = 'bc0d98b07db24635910dead31c2a8379';
   /* Donazioni. Con i Payment Link di Stripe (https://buy.stripe.com/...) la pagina mostra gli importi:
      un tocco e si paga con Apple Pay, Google Pay o carta, poi Stripe riporta qui con ?grazie.
      Finché i link sono vuoti resta il pulsante di Ko-fi. */
@@ -57,6 +61,7 @@
   }
   function setLang(l) {
     LANG = l === 'en' ? 'en' : 'it';
+    track('lang_switch', LANG);
     P.setLang(LANG);
     try { localStorage.setItem(LANG_KEY, LANG); } catch (e) { /* ignora */ }
     applyStatic();
@@ -71,6 +76,27 @@
     replan();
   }
 
+  /* ---------------- statistiche anonime ---------------- */
+  function statsOn() { return location.hostname === STATS_HOST && !(window.claude && typeof window.claude.use === 'function'); }
+  function track(name, detail) {
+    if (!statsOn()) return;
+    try {
+      var body = JSON.stringify({ e: name, d: detail == null ? '' : String(detail) });
+      if (navigator.sendBeacon) navigator.sendBeacon('/api/e', body);
+      else fetch('/api/e', { method: 'POST', body: body, keepalive: true }).catch(function () { /* ignora */ });
+    } catch (e) { /* ignora */ }
+  }
+  function startStats(standalone) {
+    if (!statsOn()) return;
+    var s = document.createElement('script');
+    s.defer = true;
+    s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+    s.setAttribute('data-cf-beacon', JSON.stringify({ token: CF_BEACON_TOKEN }));
+    document.head.appendChild(s);
+    track('open', standalone ? 'app' : 'web');
+    track('lang', LANG);
+  }
+
   /* ---------------- donazioni ---------------- */
   var HEART = '';
   function stripeOn() { return DONATE.amounts.some(function (a) { return a.url; }) || !!DONATE.custom; }
@@ -80,15 +106,15 @@
     text.textContent = t(text.dataset.i18n);
     $('donateHint').hidden = !on;
     $('donateHint').textContent = on ? t('donate.stripeHint') + (DONATE.paypal ? ' ' + t('donate.paypalHint') : '') : '';
-    var link = function (url, cls, label) { return '<a class="btn ' + cls + '" href="' + esc(url) + '" target="_blank" rel="noopener">' + label + '</a>'; };
+    var link = function (url, cls, label, tr) { return '<a class="btn ' + cls + '" href="' + esc(url) + '" target="_blank" rel="noopener" data-track="' + tr + '">' + label + '</a>'; };
     var html;
     if (on) {
       var fmt = function (eur) { try { return new Intl.NumberFormat(locale(), { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(eur); } catch (e) { return eur + ' €'; } };
-      html = DONATE.amounts.filter(function (a) { return a.url; }).map(function (a) { return link(a.url, 'primary donate', HEART + '<span>' + esc(fmt(a.eur)) + '</span>'); }).join('') +
-        (DONATE.custom ? link(DONATE.custom, 'donate', '<span>' + esc(t('donate.other')) + '</span>') : '') +
-        (DONATE.paypal ? link(DONATE.paypal, 'donate', '<span>PayPal</span>') : '');
+      html = DONATE.amounts.filter(function (a) { return a.url; }).map(function (a) { return link(a.url, 'primary donate', HEART + '<span>' + esc(fmt(a.eur)) + '</span>', a.eur); }).join('') +
+        (DONATE.custom ? link(DONATE.custom, 'donate', '<span>' + esc(t('donate.other')) + '</span>', 'custom') : '') +
+        (DONATE.paypal ? link(DONATE.paypal, 'donate', '<span>PayPal</span>', 'paypal') : '');
     } else {
-      html = link(DONATE.kofi, 'primary donate', HEART + '<span>' + esc(t('donate.cta')) + '</span>');
+      html = link(DONATE.kofi, 'primary donate', HEART + '<span>' + esc(t('donate.cta')) + '</span>', 'kofi');
     }
     $('donateActions').innerHTML = html;
     var top = document.querySelector('.top-actions .donate-link');
@@ -99,11 +125,16 @@
     var top = document.querySelector('.top-actions .donate-link');
     HEART = top.querySelector('svg').outerHTML;
     top.addEventListener('click', function (ev) {
+      track('donate', 'top');
       if (top.getAttribute('href') !== '#donate') return;
       ev.preventDefault();
       $('donate').scrollIntoView({ behavior: 'smooth', block: 'center' });
       var first = $('donateActions').querySelector('a');
       if (first) setTimeout(function () { first.focus({ preventScroll: true }); }, 400);
+    });
+    $('donateActions').addEventListener('click', function (ev) {
+      var a = ev.target.closest && ev.target.closest('a[data-track]');
+      if (a) track('donate', a.dataset.track);
     });
     // ritorno da Stripe dopo il pagamento
     var q = location.search;
@@ -277,7 +308,10 @@
   function bindRoute() {
     var R = state.route;
     Array.prototype.forEach.call(document.querySelectorAll('#stratSeg button'), function (b) {
-      b.addEventListener('click', function () { R.strategy = b.dataset.strategy; renderStrategy(); save(); replan(); });
+      b.addEventListener('click', function () {
+        if (R.strategy !== b.dataset.strategy) track('strategy', b.dataset.strategy);
+        R.strategy = b.dataset.strategy; renderStrategy(); save(); replan();
+      });
     });
     Array.prototype.forEach.call(document.querySelectorAll('#mapGrid select'), function (s) {
       s.innerHTML = P.MODE_KEYS.map(function (k) { return '<option value="' + k + '">' + LABEL[k] + '</option>'; }).join('');
@@ -324,6 +358,7 @@
           var parsed = P.parseRoute(String(reader.result), f.name);
           var base = P.prepareRoute(parsed.points);
           state.file = { name: parsed.name, sample: false, filename: f.name };
+          track('gpx_load', /\.kml$/i.test(f.name) ? 'kml' : 'gpx');
           state.base = base;
           state.osm = null;
           showError('');
@@ -382,6 +417,7 @@
     window.AvinoxOsm.fetchSurfaceMix(pts).then(function (res) {
       if (state.base !== base) return;
       state.osm = res.ok ? { base: base, samples: res.samples, mix: res.mix, coverage: res.coverage } : { base: base, error: res.reason };
+      track('osm', res.ok ? 'ok' : 'error');
       renderOsm(); replan();
     });
   }
@@ -419,6 +455,7 @@
     };
     var f = P.rideFactor(ride), range = P.FACTOR_RANGE;
     state.rides.push(ride); saveRides();
+    track('ride_saved');
     msg.textContent = (isFinite(f) && f >= range[0] && f <= range[1])
       ? t(f >= 1 ? 'calib.savedMore' : 'calib.savedLess', { p: Math.round(Math.abs(f - 1) * 100) })
       : t('calib.outOfRange', { f: isFinite(f) ? d2(f) : '?' });
@@ -512,6 +549,7 @@
     var m = Object.assign({ wkg: st.maxPower / state.modes.totalWeight, warnings: [] }, st);
     $('autoRow').appendChild(modeRow('mode-auto', 'AUTO', t(st.levelMin !== st.levelMax ? 'mode.range' : 'mode.fixed'), m));
     $('copyAuto').addEventListener('click', function () {
+      track('auto_copy');
       copy(state.file.name + ' – ' + t('copy.auto', { l1: st.levelMin, l2: st.levelMax, p: st.maxPower, t: st.maxTorque, o: st.overrun, s: st.start, c: st.continued, a: st.accel }),
         $('copyAuto'), $('autoManual'), $('autoManualText'));
     });
@@ -737,6 +775,8 @@
     }
     $('dlBtn').addEventListener('click', function () {
       if (!state.result) return;
+      track('gpx_download', state.route.strategy);
+      track('setup', state.rider.bike + '/' + state.rider.battery);
       var name = baseName();
       if (downloads) {
         setStatus(t('dl.confirm'));
@@ -754,12 +794,25 @@
         setStatus(t('dl.saved', { name: name }));
       }
     });
-    $('copyGpx').addEventListener('click', function () { if (state.result) copy(gpxText(), $('copyGpx'), $('cueManual'), $('cueManualText')); });
-    $('copyCues').addEventListener('click', function () { if (state.result) copy(P.cueText(state.file.name, state.result), $('copyCues'), $('cueManual'), $('cueManualText')); });
-    $('copySchema').addEventListener('click', function () { if (state.schemaText) copy(state.schemaText, $('copySchema'), $('schemaManual'), $('schemaManualText')); });
+    $('copyGpx').addEventListener('click', function () {
+      if (!state.result) return;
+      track('gpx_copy', state.route.strategy);
+      copy(gpxText(), $('copyGpx'), $('cueManual'), $('cueManualText'));
+    });
+    $('copyCues').addEventListener('click', function () {
+      if (!state.result) return;
+      track('cues_copy');
+      copy(P.cueText(state.file.name, state.result), $('copyCues'), $('cueManual'), $('cueManualText'));
+    });
+    $('copySchema').addEventListener('click', function () {
+      if (!state.schemaText) return;
+      track('schema_copy');
+      copy(state.schemaText, $('copySchema'), $('schemaManual'), $('schemaManualText'));
+    });
 
     /* esporta / importa i dati */
     var exportData = function () {
+      track('data_export');
       var text = JSON.stringify({ app: 'avinox-mode-planner', version: 1, exportedAt: new Date().toISOString(),
         settings: { rider: state.rider, route: state.route }, rides: state.rides, lang: LANG }, null, 2);
       var name = t('data.fileName'), msg = $('dataMsg');
@@ -787,6 +840,7 @@
           localStorage.setItem(RIDES_KEY, JSON.stringify(Array.isArray(d.rides) ? d.rides : []));
           if (d.lang === 'it' || d.lang === 'en') localStorage.setItem(LANG_KEY, d.lang);
           msg.textContent = t('data.imported');
+          track('data_import');
           setTimeout(function () { location.reload(); }, 600);
         } catch (e) {
           msg.textContent = e.message === 'formato' ? t('data.badFile') : t('data.importFail');
@@ -817,6 +871,7 @@
   // app installata: niente istruzioni di installazione; fuori da claude.ai, lavoro offline col service worker
   var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
   if (standalone) $('install').hidden = true;
+  startStats(standalone);
   if (!inViewer && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () { /* resta online */ }); });
   }

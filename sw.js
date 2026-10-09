@@ -1,9 +1,9 @@
 /* Service worker: l'app funziona anche senza rete.
  * - file dell'app: prima la rete (così gli aggiornamenti arrivano subito), poi la copia salvata
  * - font di Google: prima la copia salvata
- * - OpenStreetMap (Overpass): sempre e solo rete, mai in cache
+ * - OpenStreetMap (Overpass), /api/ e /stats: sempre e solo rete, mai in cache
  */
-var CACHE = 'avinox-mode-planner-v3';
+var CACHE = 'avinox-mode-planner-v4';
 var APP = [
   './', 'index.html', 'planner.js', 'surface-osm.js', 'i18n.js', 'app.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
@@ -38,6 +38,7 @@ self.addEventListener('fetch', function (event) {
   }
 
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.indexOf('/api/') === 0 || url.pathname.indexOf('/stats') === 0) return;   // contatori e statistiche: sempre rete
   event.respondWith(fetch(req).then(function (res) {
     if (res.ok) {
       var copy = res.clone();

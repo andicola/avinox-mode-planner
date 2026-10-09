@@ -6,9 +6,9 @@
     var it = {
         'lang.label': 'Lingua',
         'donate.btn': 'Sostieni il progetto',
-        'donate.text': 'Gratis, senza pubblicità e senza raccolta di dati. Se ti è utile, puoi offrirmi un caffè: su Ko‑fi si dona con la carta, senza bisogno di registrarsi.',
+        'donate.text': 'Gratis e senza pubblicità. Se ti è utile, puoi offrirmi un caffè: su Ko‑fi si dona con la carta, senza bisogno di registrarsi.',
         'donate.cta': 'Offrimi un caffè su Ko‑fi',
-        'donate.textStripe': 'Gratis, senza pubblicità e senza raccolta di dati. Se ti è utile, puoi offrirmi un caffè.',
+        'donate.textStripe': 'Gratis e senza pubblicità. Se ti è utile, puoi offrirmi un caffè.',
         'donate.other': 'Altro importo',
         'donate.paypalHint': 'Con PayPal si passa da Ko‑fi.',
         'donate.stripeHint': 'Gli importi si pagano sulla pagina sicura di Stripe con Apple Pay o carta, senza registrarsi.',
@@ -223,15 +223,15 @@
         'data.fileName': 'avinox-planner-dati.json',
 
         'foot.credits': 'Calcolo delle modalità, modello di consumo e lettura del fondo: porting lato browser di <a href="https://github.com/lucad87/avinox-setup-app" target="_blank" rel="noopener">avinox-setup-app</a> di Luca Donnaloia (licenza MIT, <a href="https://avinox-calculator.lucad.cloud/" target="_blank" rel="noopener">versione online</a>), applicato tratto per tratto. Le percentuali per livello sono dati della community, non specifiche DJI; la stima della batteria ha un margine di circa ±22%.',
-        'foot.privacy': 'Il file GPX viene letto solo nel browser e non viene caricato da nessuna parte. Progetto non ufficiale, non affiliato a DJI né ad Amflow. <a href="https://github.com/andicola/avinox-mode-planner" target="_blank" rel="noopener">Codice su GitHub</a>.'
+        'foot.privacy': 'Il file GPX viene letto solo nel browser e non viene caricato da nessuna parte. Per capire cosa migliorare conto in forma anonima le visite e le funzioni usate, senza cookie e senza dati personali. Progetto non ufficiale, non affiliato a DJI né ad Amflow. <a href="https://github.com/andicola/avinox-mode-planner" target="_blank" rel="noopener">Codice su GitHub</a>.'
     };
 
     var en = {
         'lang.label': 'Language',
         'donate.btn': 'Support the project',
-        'donate.text': 'Free, no ads and no data collection. If it helps you, you can buy me a coffee: Ko‑fi takes cards, no account needed.',
+        'donate.text': 'Free and ad-free. If it helps you, you can buy me a coffee: Ko‑fi takes cards, no account needed.',
         'donate.cta': 'Buy me a coffee on Ko‑fi',
-        'donate.textStripe': 'Free, no ads and no data collection. If it helps you, you can buy me a coffee.',
+        'donate.textStripe': 'Free and ad-free. If it helps you, you can buy me a coffee.',
         'donate.other': 'Other amount',
         'donate.paypalHint': 'PayPal goes through Ko‑fi.',
         'donate.stripeHint': 'Amounts are paid on Stripe\'s secure page with Apple Pay or card, no account needed.',
@@ -446,7 +446,7 @@
         'data.fileName': 'avinox-planner-data.json',
 
         'foot.credits': 'Mode calculation, consumption model and surface reading: browser port of <a href="https://github.com/lucad87/avinox-setup-app" target="_blank" rel="noopener">avinox-setup-app</a> by Luca Donnaloia (MIT licence, <a href="https://avinox-calculator.lucad.cloud/" target="_blank" rel="noopener">online version</a>), applied section by section. The per-level percentages are community data, not DJI specifications; the battery estimate has a margin of about ±22%.',
-        'foot.privacy': 'The GPX file is read only in your browser and never uploaded anywhere. Unofficial project, not affiliated with DJI or Amflow. <a href="https://github.com/andicola/avinox-mode-planner" target="_blank" rel="noopener">Source code on GitHub</a>.'
+        'foot.privacy': 'The GPX file is read only in your browser and never uploaded anywhere. To know what to improve, visits and the features used are counted anonymously, with no cookies and no personal data. Unofficial project, not affiliated with DJI or Amflow. <a href="https://github.com/andicola/avinox-mode-planner" target="_blank" rel="noopener">Source code on GitHub</a>.'
     };
 
     var api = { it: it, en: en };
