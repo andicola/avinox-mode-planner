@@ -100,7 +100,7 @@ npm run build:single   # dist/avinox-mode-planner.html
 ```
 
 - `index.html`: struttura e stile della pagina. I testi italiani dentro gli elementi con `data-i18n` vengono da `i18n.js`: dopo aver cambiato un testo esegui `npm run i18n:prefill` (i test controllano che siano allineati).
-- `app.js`: logica dell'interfaccia (JS senza framework).
+- `app.js`: logica dell'interfaccia (JS senza framework). Le donazioni si configurano in cima al file (`DONATE`): con i Payment Link di Stripe compaiono gli importi da pagare con Apple Pay, Google Pay o carta; senza link resta Ko-fi. Ogni link deve rimandare a `https://avinox-planner.pages.dev/?grazie=1`, che mostra il ringraziamento.
 - `i18n.js`: tutti i testi dell'interfaccia in italiano e in inglese, con le stesse chiavi (verificato dai test).
 - `planner.js`: calcolo delle modalità, lettura GPX/KML, tratti, energia, taratura, export GPX e zip, testi dei waypoint nelle due lingue. Funziona sia nel browser sia in Node.
 - `surface-osm.js`: lettura del fondo da OpenStreetMap (dal calcolatore originale).

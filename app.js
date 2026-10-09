@@ -10,7 +10,14 @@
   var RIDES_KEY = 'avinox-mode-planner-rides';
   var LANG_KEY = 'avinox-mode-planner-lang';
   var NEW_HOME = 'https://avinox-planner.pages.dev/';   // indirizzo principale dell'app (Cloudflare Pages)
-  var DONATE_URL = 'https://ko-fi.com/andicola';
+  /* Donazioni. Con i Payment Link di Stripe (https://buy.stripe.com/...) la pagina mostra gli importi:
+     un tocco e si paga con Apple Pay, Google Pay o carta, poi Stripe riporta qui con ?grazie.
+     Finché i link sono vuoti resta il pulsante di Ko-fi. */
+  var DONATE = {
+    kofi: 'https://ko-fi.com/andicola',
+    amounts: [{ eur: 3, url: '' }, { eur: 5, url: '' }, { eur: 10, url: '' }],
+    custom: ''
+  };
   /* Spinta stimata dal peso del ciclista quando potenza e cadenza non sono note. */
   var EFFORT = { poco: { wkg: 1.2 }, normale: { wkg: 1.6 }, tanto: { wkg: 2.2 } };
   var EST_CADENCE = 80;
@@ -55,7 +62,50 @@
     if (state.file && state.file.sample) state.file.name = P.sampleRoute().name;
     $('calMsg').textContent = ''; delete $('calMsg').dataset.keep;
     $('dataMsg').textContent = ''; $('dlStatus').textContent = '';
+    renderDonate();
     replan();
+  }
+
+  /* ---------------- donazioni ---------------- */
+  var HEART = '';
+  function stripeOn() { return DONATE.amounts.some(function (a) { return a.url; }) || !!DONATE.custom; }
+  function renderDonate() {
+    var on = stripeOn(), text = $('donateText');
+    text.dataset.i18n = on ? 'donate.textStripe' : 'donate.text';
+    text.textContent = t(text.dataset.i18n);
+    $('donateHint').hidden = !on;
+    $('donateHint').textContent = on ? t('donate.stripeHint') : '';
+    var link = function (url, cls, label) { return '<a class="btn ' + cls + '" href="' + esc(url) + '" target="_blank" rel="noopener">' + label + '</a>'; };
+    var html;
+    if (on) {
+      var fmt = function (eur) { try { return new Intl.NumberFormat(locale(), { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(eur); } catch (e) { return eur + ' €'; } };
+      html = DONATE.amounts.filter(function (a) { return a.url; }).map(function (a) { return link(a.url, 'primary donate', HEART + '<span>' + esc(fmt(a.eur)) + '</span>'); }).join('') +
+        (DONATE.custom ? link(DONATE.custom, 'donate', '<span>' + esc(t('donate.other')) + '</span>') : '');
+    } else {
+      html = link(DONATE.kofi, 'primary donate', HEART + '<span>' + esc(t('donate.cta')) + '</span>');
+    }
+    $('donateActions').innerHTML = html;
+    var top = document.querySelector('.top-actions .donate-link');
+    if (on) { top.href = '#donate'; top.removeAttribute('target'); top.removeAttribute('rel'); }
+    else { top.href = DONATE.kofi; top.target = '_blank'; top.rel = 'noopener'; }
+  }
+  function bindDonate() {
+    var top = document.querySelector('.top-actions .donate-link');
+    HEART = top.querySelector('svg').outerHTML;
+    top.addEventListener('click', function (ev) {
+      if (top.getAttribute('href') !== '#donate') return;
+      ev.preventDefault();
+      $('donate').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      var first = $('donateActions').querySelector('a');
+      if (first) setTimeout(function () { first.focus({ preventScroll: true }); }, 400);
+    });
+    // ritorno da Stripe dopo il pagamento
+    var q = location.search;
+    if (/[?&](grazie|thanks)\b/.test(q)) {
+      $('thanks').dataset.i18n = 'donate.thanks';
+      $('thanks').hidden = false;
+      try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { /* ignora */ }
+    }
   }
 
   /* ---------------- memoria del browser ---------------- */
@@ -746,7 +796,9 @@
   P.setLang(LANG);
   load();
   loadRides();
+  bindDonate();
   applyStatic();
+  renderDonate();
   fillSelects();
   bindRider();
   bindRoute();
@@ -755,7 +807,6 @@
   Array.prototype.forEach.call(document.querySelectorAll('#langSeg button'), function (b) {
     b.addEventListener('click', function () { if (b.dataset.lang !== LANG) setLang(b.dataset.lang); });
   });
-  Array.prototype.forEach.call(document.querySelectorAll('.donate-link'), function (a) { a.href = DONATE_URL; });
 
   // app installata: niente istruzioni di installazione; fuori da claude.ai, lavoro offline col service worker
   var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;

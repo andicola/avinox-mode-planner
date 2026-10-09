@@ -280,7 +280,12 @@ a.btn.primary { color: var(--bg); }
 .btn.donate svg { width: 15px; height: 15px; flex: none; color: var(--turbo); }
 .btn.primary.donate svg { color: var(--bg); }
 .donate-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; border: 1px solid var(--line); border-left: 6px solid var(--turbo); border-radius: var(--r); background: var(--panel); padding: 16px 18px; }
-.donate-box div { display: grid; gap: 4px; max-width: 62ch; }
+.donate-box .donate-copy { display: grid; gap: 4px; max-width: 62ch; }
+.donate-pay { display: grid; gap: 6px; justify-items: start; }
+.donate-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.donate-actions .btn { padding: 8px 14px; font-size: 15px; }
+.donate-pay .hint { max-width: 40ch; }
+.callout.thanks { background: var(--soft); color: var(--ink); border-left: 6px solid var(--ok); font-weight: 600; }
 .donate-box h2 { font-size: 22px; font-weight: 600; text-transform: uppercase; }
 .donate-box p { font-size: 14.5px; color: var(--muted); }
 </style>
@@ -291,6 +296,7 @@ a.btn.primary { color: var(--bg); }
     <p><span data-i18n="move.lead">L'app ha un nuovo indirizzo:</span> <a id="moveLink" href="https://avinox-planner.pages.dev/" target="_blank" rel="noopener">avinox-planner.pages.dev</a>. <span data-i18n-html="move.rest">Per portare là impostazioni e giri di taratura tocca <b>Esporta dati</b> qui, poi <b>Importa dati</b> nella nuova app. Se l'avevi aggiunta alla schermata Home, aggiungi anche quella nuova.</span></p>
     <div><button type="button" class="btn" id="moveExport" data-i18n="btn.export">Esporta dati</button></div>
   </div>
+  <div class="callout thanks" id="thanks" role="status" hidden></div>
   <header class="mast">
     <div class="topbar">
       <div class="eyebrow">DJI Avinox M2 · M2S</div>
@@ -522,11 +528,14 @@ a.btn.primary { color: var(--bg); }
   </section>
 
   <section class="donate-box" id="donate" aria-labelledby="h-donate">
-    <div>
+    <div class="donate-copy">
       <h2 id="h-donate" data-i18n="donate.btn">Sostieni il progetto</h2>
-      <p data-i18n="donate.text">Gratis, senza pubblicità e senza raccolta di dati. Se ti è utile, puoi offrirmi un caffè: su Ko‑fi si dona con la carta, senza bisogno di registrarsi.</p>
+      <p id="donateText" data-i18n="donate.text">Gratis, senza pubblicità e senza raccolta di dati. Se ti è utile, puoi offrirmi un caffè: su Ko‑fi si dona con la carta, senza bisogno di registrarsi.</p>
     </div>
-    <a class="btn primary donate donate-link" href="https://ko-fi.com/andicola" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span data-i18n="donate.cta">Offrimi un caffè su Ko‑fi</span></a>
+    <div class="donate-pay">
+      <div class="donate-actions" id="donateActions"><a class="btn primary donate" href="https://ko-fi.com/andicola" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span data-i18n="donate.cta">Offrimi un caffè su Ko‑fi</span></a></div>
+      <p class="hint" id="donateHint" hidden></p>
+    </div>
   </section>
 
   <footer class="foot">
