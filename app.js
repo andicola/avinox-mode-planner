@@ -15,6 +15,7 @@
      Finché i link sono vuoti resta il pulsante di Ko-fi. */
   var DONATE = {
     kofi: 'https://ko-fi.com/andicola',
+    paypal: 'https://ko-fi.com/andicola',   // PayPal passa da Ko-fi (collegato lì)
     amounts: [
       { eur: 3, url: 'https://buy.stripe.com/7sYfZi9Ehg1r9i57vE7IY00' },
       { eur: 5, url: 'https://buy.stripe.com/fZu6oIbMpg1rbqd03c7IY01' },
@@ -78,13 +79,14 @@
     text.dataset.i18n = on ? 'donate.textStripe' : 'donate.text';
     text.textContent = t(text.dataset.i18n);
     $('donateHint').hidden = !on;
-    $('donateHint').textContent = on ? t('donate.stripeHint') : '';
+    $('donateHint').textContent = on ? t('donate.stripeHint') + (DONATE.paypal ? ' ' + t('donate.paypalHint') : '') : '';
     var link = function (url, cls, label) { return '<a class="btn ' + cls + '" href="' + esc(url) + '" target="_blank" rel="noopener">' + label + '</a>'; };
     var html;
     if (on) {
       var fmt = function (eur) { try { return new Intl.NumberFormat(locale(), { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(eur); } catch (e) { return eur + ' €'; } };
       html = DONATE.amounts.filter(function (a) { return a.url; }).map(function (a) { return link(a.url, 'primary donate', HEART + '<span>' + esc(fmt(a.eur)) + '</span>'); }).join('') +
-        (DONATE.custom ? link(DONATE.custom, 'donate', '<span>' + esc(t('donate.other')) + '</span>') : '');
+        (DONATE.custom ? link(DONATE.custom, 'donate', '<span>' + esc(t('donate.other')) + '</span>') : '') +
+        (DONATE.paypal ? link(DONATE.paypal, 'donate', '<span>PayPal</span>') : '');
     } else {
       html = link(DONATE.kofi, 'primary donate', HEART + '<span>' + esc(t('donate.cta')) + '</span>');
     }

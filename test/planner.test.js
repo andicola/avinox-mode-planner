@@ -241,7 +241,7 @@ test('pagina: chiavi di traduzione esistenti, testi italiani allineati, script e
   [...app.matchAll(/\bt\('([\w.]+)'\s*[,)]/g)].forEach((m) => assert.ok(m[1] in T.it, 'chiave mancante in i18n.js: ' + m[1]));
   assert.match(html, /href="https:\/\/ko-fi\.com\/andicola"/);
   // link di pagamento Stripe: solo indirizzi buy.stripe.com
-  const stripe = [...app.matchAll(/url: '([^']*)'|custom: '([^']*)'/g)].map((m) => m[1] || m[2]).filter(Boolean);
+  const stripe = [...app.matchAll(/\burl: '([^']*)'|custom: '([^']*)'/g)].map((m) => m[1] || m[2]).filter(Boolean);
   assert.equal(stripe.length, 4);
   stripe.forEach((u) => assert.match(u, /^https:\/\/buy\.stripe\.com\/[A-Za-z0-9]+$/));
   assert.match(html, /property="og:image" content="https:\/\/avinox-planner\.pages\.dev\/og-image\.png"/);

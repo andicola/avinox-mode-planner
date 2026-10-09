@@ -117,7 +117,7 @@ Non c'è backend: la pagina è statica e tutti i calcoli girano nel browser. `np
 
 ## Sostieni il progetto
 
-L'app è gratuita, senza pubblicità e senza raccolta di dati. Se ti è utile puoi offrirmi un caffè: il pulsante **Sostieni il progetto** in alto porta agli importi (3, 5, 10 € o libero) che si pagano su Stripe con Apple Pay o carta, senza registrarsi. In alternativa c'è [Ko-fi](https://ko-fi.com/andicola).
+L'app è gratuita, senza pubblicità e senza raccolta di dati. Se ti è utile puoi offrirmi un caffè: il pulsante **Sostieni il progetto** in alto porta agli importi (3, 5, 10 € o libero) che si pagano su Stripe con Apple Pay o carta, senza registrarsi. Con PayPal si passa da [Ko-fi](https://ko-fi.com/andicola).
 
 ## Crediti e licenza
 

@@ -10,7 +10,8 @@
         'donate.cta': 'Offrimi un caffè su Ko‑fi',
         'donate.textStripe': 'Gratis, senza pubblicità e senza raccolta di dati. Se ti è utile, puoi offrirmi un caffè.',
         'donate.other': 'Altro importo',
-        'donate.stripeHint': 'Si paga sulla pagina sicura di Stripe con Apple Pay o carta, senza registrarsi.',
+        'donate.paypalHint': 'Con PayPal si passa da Ko‑fi.',
+        'donate.stripeHint': 'Gli importi si pagano sulla pagina sicura di Stripe con Apple Pay o carta, senza registrarsi.',
         'donate.thanks': 'Grazie per il caffè! Mi aiuta a tenere l\'app gratuita e aggiornata.',
         'aria.copyText': 'Testo da copiare',
 
@@ -232,7 +233,8 @@
         'donate.cta': 'Buy me a coffee on Ko‑fi',
         'donate.textStripe': 'Free, no ads and no data collection. If it helps you, you can buy me a coffee.',
         'donate.other': 'Other amount',
-        'donate.stripeHint': 'You pay on Stripe\'s secure page with Apple Pay or card, no account needed.',
+        'donate.paypalHint': 'PayPal goes through Ko‑fi.',
+        'donate.stripeHint': 'Amounts are paid on Stripe\'s secure page with Apple Pay or card, no account needed.',
         'donate.thanks': 'Thanks for the coffee! It helps keep the app free and up to date.',
         'aria.copyText': 'Text to copy',
 
