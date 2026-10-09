@@ -186,3 +186,59 @@ test('modalità RISERVA sotto ECO', () => {
   assert.ok(m.reserve.maxPower <= m.modes.eco.maxPower);
   assert.equal(m.reserve.maxPower % 50, 0);
 });
+
+test('motore M2: stessi risultati del calcolatore originale', () => {
+  const lv = (m) => [levels(m), m.maxPower, m.maxTorque];
+  const a = P.calcModes({ bike: 'M2', riderWeight: 87, bikeWeight: 24.2, cadence: 80, riderPower: 140, wkg: BAL });
+  assert.deepEqual(lv(a.modes.eco), ['4', 150, 25]);
+  assert.deepEqual(lv(a.modes.auto), ['5-7', 300, 50]);
+  assert.deepEqual(lv(a.modes.trail), ['8-10', 600, 95]);
+  assert.deepEqual(lv(a.modes.turbo), ['13', 850, 110]);
+  const b = P.calcModes({ bike: 'M2', riderWeight: 95, bikeWeight: 25, cadence: 70, riderPower: 120, wkg: P.PRESETS.enduro.wkg });
+  assert.deepEqual(lv(b.modes.eco), ['5', 200, 30]);
+  assert.deepEqual(lv(b.modes.auto), ['6-10', 450, 70]);
+  assert.deepEqual(lv(b.modes.trail), ['10-13', 800, 110]);
+  assert.deepEqual(lv(b.modes.turbo), ['15', 1050, 110]);
+  assert.equal(b.modes.turbo.warnings.length, 1);
+  assert.equal(b.warnings.length, 1);
+});
+
+test('traduzioni: italiano e inglese hanno le stesse chiavi e i segnaposto', () => {
+  const T = require('../i18n.js');
+  const it = Object.keys(T.it).sort(), en = Object.keys(T.en).sort();
+  assert.deepEqual(en, it);
+  const vars = (s) => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  it.forEach((k) => assert.equal(vars(T.en[k]), vars(T.it[k]), 'segnaposto diversi in ' + k));
+});
+
+test('testi del planner in inglese', () => {
+  P.setLang('en');
+  try {
+    const base = P.prepareRoute(P.sampleRoute().points);
+    const r = P.plan(base, OPTS, null);
+    assert.match(r.waypoints[1].desc, /switch to/);
+    assert.match(P.fmtKm(1500), /^1\.5$/);
+    assert.match(P.calcModes({ riderWeight: 0, bikeWeight: 1, cadence: 80, riderPower: 100, wkg: BAL }).error, /positive/);
+  } finally { P.setLang('it'); }
+  assert.match(P.fmtKm(1500), /^1,5$/);
+});
+
+test('pagina: chiavi di traduzione esistenti, testi italiani allineati, script e id usati da app.js', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const T = require('../i18n.js');
+  const { prefill, usedKeys } = require('../scripts/prefill-i18n.js');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  usedKeys(html).forEach((k) => assert.ok(k in T.it && k in T.en, 'chiave mancante: ' + k));
+  assert.equal(prefill(html, T.it), html, 'esegui: node scripts/prefill-i18n.js');
+  const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(scripts, ['surface-osm.js', 'planner.js', 'i18n.js', 'app.js']);
+  const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  const ids = new Set([...app.matchAll(/\$\('([\w-]+)'\)/g)].map((m) => m[1]));
+  ['copyAuto', 'autoRow', 'autoManual', 'autoManualText'].forEach((id) => ids.delete(id)); // creati da app.js
+  ids.forEach((id) => assert.ok(html.includes('id="' + id + '"'), 'manca id="' + id + '" in index.html'));
+  // ogni chiave usata da app.js con t('...') esiste
+  [...app.matchAll(/\bt\('([\w.]+)'\s*[,)]/g)].forEach((m) => assert.ok(m[1] in T.it, 'chiave mancante in i18n.js: ' + m[1]));
+  assert.match(html, /href="https:\/\/paypal\.me\/andicola"/);
+  assert.match(html, /property="og:image" content="https:\/\/avinox-planner\.pages\.dev\/og-image\.png"/);
+});

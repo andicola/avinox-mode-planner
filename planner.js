@@ -8,7 +8,27 @@
 
     /* ======================= MODALITÀ (Tuner) ======================= */
 
-    var BIKE = { name: 'Avinox M2S', maxTorque: 130, maxPower: 1300 };
+    /* Motori supportati (come nel calcolatore originale; l'M1 no). */
+    var BIKES = {
+        M2S: { id: 'M2S', name: 'Avinox M2S', maxTorque: 130, maxPower: 1300, boostTorque: 150, boostPower: 1500 },
+        M2:  { id: 'M2',  name: 'Avinox M2',  maxTorque: 110, maxPower: 1100, boostTorque: 125, boostPower: 1100 }
+    };
+    /* Batterie Avinox: solo FP700 e RS800 danno all'M2S il Boost pieno da 1500 W. */
+    var BATTERIES = {
+        FS600: { id: 'FS600', wh: 600, fullBoost: false },
+        FP700: { id: 'FP700', wh: 700, fullBoost: true },
+        FS800: { id: 'FS800', wh: 800, fullBoost: false },
+        RS600: { id: 'RS600', wh: 600, fullBoost: false },
+        RS800: { id: 'RS800', wh: 800, fullBoost: true }
+    };
+    function bikeOf(id) { return BIKES[id] || BIKES.M2S; }
+
+    /* Lingua dei testi generati (waypoint, avvisi, errori): 'it' o 'en'. */
+    var LANG = 'it';
+    L.setLang = function (l) { LANG = l === 'en' ? 'en' : 'it'; };
+    L.getLang = function () { return LANG; };
+    function tr(it, en) { return LANG === 'en' ? en : it; }
+    function dec(x, digits) { var s = x.toFixed(digits); return LANG === 'en' ? s : s.replace('.', ','); }
     // Rapporto motore/ciclista per livello (tabella comunitaria M2S), indice = livello.
     var ASSIST = [0, 0.35, 0.70, 1.00, 1.50, 1.85, 2.15, 2.45, 3.00, 3.60, 4.35, 5.15, 6.05, 7.00, 7.65, 8.00];
     var BP = {
@@ -39,18 +59,18 @@
         return best < 0 ? hi : best;
     }
 
-    function buildMode(key, lo, hi, targetPower, pRider, rpm, total) {
+    function buildMode(key, lo, hi, targetPower, pRider, rpm, total, bike) {
         var bp = BP[key];
-        var idealPower = clamp(Math.round(targetPower), bp.minPower, BIKE.maxPower);
-        var maxPower = snap(idealPower, 50, bp.minPower, BIKE.maxPower);
+        var idealPower = clamp(Math.round(targetPower), bp.minPower, bike.maxPower);
+        var maxPower = snap(idealPower, 50, bp.minPower, bike.maxPower);
         var idealTorque = (maxPower * 9.55) / Math.min(rpm, CLIMB_RPM);
-        var maxTorque = snap(Math.round(idealTorque), 5, 5, BIKE.maxTorque);
+        var maxTorque = snap(Math.round(idealTorque), 5, 5, bike.maxTorque);
         var cruiseTorque = (maxPower * 9.55) / rpm;
         var warnings = [];
-        if (cruiseTorque > BIKE.maxTorque + 0.5) {
-            warnings.push('A ' + Math.round(rpm) + ' rpm il motore arriva al massimo a ~' +
-                Math.round((BIKE.maxTorque * rpm) / 9.55) + ' W: per ' + maxPower + ' W servono almeno ' +
-                Math.ceil((maxPower * 9.55) / BIKE.maxTorque) + ' rpm.');
+        if (cruiseTorque > bike.maxTorque + 0.5) {
+            var top = Math.round((bike.maxTorque * rpm) / 9.55), need = Math.ceil((maxPower * 9.55) / bike.maxTorque);
+            warnings.push(tr('A ' + Math.round(rpm) + ' rpm il motore arriva al massimo a ~' + top + ' W: per ' + maxPower + ' W servono almeno ' + need + ' rpm.',
+                'At ' + Math.round(rpm) + ' rpm the motor tops out at ~' + top + ' W: ' + maxPower + ' W needs at least ' + need + ' rpm.'));
         }
         return {
             key: key, label: bp.label, type: bp.type,
@@ -66,54 +86,57 @@
     L.calcModes = function (input) {
         var rider = +input.riderWeight, bike = +input.bikeWeight, rpm = +input.cadence, pRider = +input.riderPower;
         if (![rider, bike, rpm, pRider].every(function (n) { return isFinite(n) && n > 0; })) {
-            return { error: 'Inserisci peso, cadenza e potenza come numeri positivi.' };
+            return { error: tr('Inserisci peso, cadenza e potenza come numeri positivi.', 'Enter weight, cadence and power as positive numbers.') };
         }
-        if (rpm < 20 || rpm > 140) return { error: 'La cadenza deve stare tra 20 e 140 rpm.' };
+        if (rpm < 20 || rpm > 140) return { error: tr('La cadenza deve stare tra 20 e 140 rpm.', 'Cadence must be between 20 and 140 rpm.') };
         var wkg = input.wkg;
+        var motor = bikeOf(input.bike);
         var total = rider + bike;
         var out = {};
 
-        var ecoPower = clamp(Math.round(total * wkg[0]), BP.eco.minPower, BIKE.maxPower);
+        var ecoPower = clamp(Math.round(total * wkg[0]), BP.eco.minPower, motor.maxPower);
         var ecoLevel = nearestLevel(ecoPower / pRider, 1, 7);
-        out.eco = buildMode('eco', ecoLevel, ecoLevel, ecoPower, pRider, rpm, total);
+        out.eco = buildMode('eco', ecoLevel, ecoLevel, ecoPower, pRider, rpm, total, motor);
 
-        var autoPower = clamp(Math.round(total * wkg[1]), BP.auto.minPower, BIKE.maxPower);
+        var autoPower = clamp(Math.round(total * wkg[1]), BP.auto.minPower, motor.maxPower);
         var autoFloor = clamp(Math.round(total * BP.auto.floorWkg), BP.auto.minPower, autoPower);
         var autoMax = nearestLevel(autoPower / pRider, 3, 11);
         var autoMin = clamp(Math.max(nearestLevel(autoFloor / pRider, 3, 11), ecoLevel + 1), 3, autoMax);
-        out.auto = buildMode('auto', autoMin, autoMax, autoPower, pRider, rpm, total);
+        out.auto = buildMode('auto', autoMin, autoMax, autoPower, pRider, rpm, total, motor);
 
-        var trailPower = clamp(Math.round(total * wkg[2]), BP.trail.minPower, BIKE.maxPower);
+        var trailPower = clamp(Math.round(total * wkg[2]), BP.trail.minPower, motor.maxPower);
         var trailFloor = clamp(Math.round(total * BP.trail.floorWkg), BP.trail.minPower, trailPower);
         var trailMax = nearestLevel(trailPower / pRider, 6, 13);
         var trailMin = clamp(Math.max(nearestLevel(trailFloor / pRider, 6, 13), autoMax), 6, trailMax);
-        out.trail = buildMode('trail', trailMin, trailMax, trailPower, pRider, rpm, total);
+        out.trail = buildMode('trail', trailMin, trailMax, trailPower, pRider, rpm, total, motor);
 
-        var turboPower = clamp(Math.round(total * wkg[3]), BP.turbo.minPower, BIKE.maxPower);
+        var turboPower = clamp(Math.round(total * wkg[3]), BP.turbo.minPower, motor.maxPower);
         var turboLevel = clamp(Math.max(nearestLevel(turboPower / pRider, 8, 15), trailMax), 8, 15);
-        out.turbo = buildMode('turbo', turboLevel, turboLevel, turboPower, pRider, rpm, total);
+        out.turbo = buildMode('turbo', turboLevel, turboLevel, turboPower, pRider, rpm, total, motor);
 
         var warnings = [];
-        var ceiling = Math.round((BIKE.maxTorque * rpm) / 9.55);
+        var ceiling = Math.round((motor.maxTorque * rpm) / 9.55);
         if (out.turbo.maxPower > ceiling) {
-            warnings.push('A ' + Math.round(rpm) + ' rpm il motore eroga al massimo ' + ceiling + ' W: il TURBO a ' +
-                out.turbo.maxPower + ' W richiede una cadenza più alta.');
+            warnings.push(tr('A ' + Math.round(rpm) + ' rpm il motore eroga al massimo ' + ceiling + ' W: il TURBO a ' + out.turbo.maxPower + ' W richiede una cadenza più alta.',
+                'At ' + Math.round(rpm) + ' rpm the motor delivers at most ' + ceiling + ' W: TURBO at ' + out.turbo.maxPower + ' W needs a higher cadence.'));
         }
         if (pRider < 120) {
-            warnings.push('Con una potenza tua sotto i 120 W i livelli escono alti. Se il valore è la media dell\'app su tutto il giro, ' +
-                'include discese e soste: la potenza mentre pedali è più alta.');
+            warnings.push(tr('Con una potenza tua sotto i 120 W i livelli escono alti. Se il valore è la media dell\'app su tutto il giro, ' +
+                'include discese e soste: la potenza mentre pedali è più alta.',
+                'With your power below 120 W the levels come out high. If the value is the app average over the whole ride, ' +
+                'it includes descents and stops: your power while pedalling is higher.'));
         }
         // RISERVA: modalità personalizzata (livello fisso) per allungare l'ultima parte del giro,
         // come la "ROUTE RESERVE" proposta dal calcolatore originale (1,10 W/kg, rampa morbida).
-        var resPower = snap(clamp(Math.round(total * 1.10), 100, BIKE.maxPower), 50, 100, BIKE.maxPower);
+        var resPower = snap(clamp(Math.round(total * 1.10), 100, motor.maxPower), 50, 100, motor.maxPower);
         var resLevel = Math.min(nearestLevel(resPower / pRider, 1, 15), ecoLevel);
         var reserve = {
-            key: 'reserve', label: 'RISERVA', type: 'fixed', levelMin: resLevel, levelMax: resLevel,
+            key: 'reserve', label: tr('RISERVA', 'RESERVE'), type: 'fixed', levelMin: resLevel, levelMax: resLevel,
             pctMin: Math.round(ASSIST[resLevel] * 100), pctMax: Math.round(ASSIST[resLevel] * 100),
-            maxPower: resPower, maxTorque: snap(Math.round((resPower * 9.55) / Math.min(rpm, CLIMB_RPM)), 5, 5, BIKE.maxTorque),
+            maxPower: resPower, maxTorque: snap(Math.round((resPower * 9.55) / Math.min(rpm, CLIMB_RPM)), 5, 5, motor.maxTorque),
             overrun: 1, start: 1, continued: 1, accel: null, wkg: resPower / total, warnings: []
         };
-        return { modes: out, reserve: reserve, totalWeight: total, warnings: warnings };
+        return { modes: out, reserve: reserve, totalWeight: total, warnings: warnings, bike: motor };
     };
 
     /* ======================= PERCORSO ======================= */
@@ -143,12 +166,12 @@
             Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
         return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(s)));
     }
-    function fmtKm(m) { return (m / 1000).toFixed(1).replace('.', ','); }
+    function fmtKm(m) { return dec(m / 1000, 1); }
 
     /** GPX (trk/rte) o KML (LineString, gx:Track). Richiede DOMParser (browser). */
     L.parseRoute = function (text, filename) {
         var doc = new DOMParser().parseFromString(text, 'application/xml');
-        if (doc.getElementsByTagName('parsererror').length) throw new Error('Il file non è un GPX o KML leggibile.');
+        if (doc.getElementsByTagName('parsererror').length) throw new Error(tr('Il file non è un GPX o KML leggibile.', 'The file is not a readable GPX or KML.'));
         var all = function (name) { return Array.prototype.slice.call(doc.getElementsByTagNameNS('*', name)); };
         var pts = [];
         var name = '';
@@ -177,7 +200,7 @@
                 });
             });
         }
-        if (!name) name = String(filename || 'percorso').replace(/\.(gpx|kml)$/i, '');
+        if (!name) name = String(filename || tr('percorso', 'route')).replace(/\.(gpx|kml)$/i, '');
         return { name: name, points: pts };
     };
 
@@ -195,9 +218,10 @@
             }
             pts.push(q);
         });
-        if (pts.length < 2) throw new Error('Il file non contiene una traccia.');
+        if (pts.length < 2) throw new Error(tr('Il file non contiene una traccia.', 'The file contains no track.'));
         var withEle = pts.filter(function (p) { return p.ele !== null; }).length;
-        if (withEle < pts.length * 0.5) throw new Error('La traccia non ha la quota: senza altimetria non si possono calcolare le pendenze. Esportala da Wikiloc o da un planner che aggiunge la quota.');
+        if (withEle < pts.length * 0.5) throw new Error(tr('La traccia non ha la quota: senza altimetria non si possono calcolare le pendenze. Esportala da Wikiloc o da un planner che aggiunge la quota.',
+            'The track has no elevation, so gradients cannot be computed. Export it from Wikiloc or from a planner that adds elevation.'));
         var lastIdx = -1;
         for (var i = 0; i < pts.length; i++) {
             if (pts[i].ele === null) continue;
@@ -228,7 +252,7 @@
     L.prepareRoute = function (points) {
         var pts = cleanPoints(points);
         var total = pts[pts.length - 1].d;
-        if (total < 300) throw new Error('La traccia è troppo corta (meno di 300 m).');
+        if (total < 300) throw new Error(tr('La traccia è troppo corta (meno di 300 m).', 'The track is too short (under 300 m).'));
         var N = Math.floor(total / STEP) + 1, ele = new Array(N), j = 0, k;
         for (k = 0; k < N; k++) {
             var t = k * STEP;
@@ -407,7 +431,7 @@
         var mine = {}, stock = {};
         MODE_KEYS.forEach(function (k) {
             var m = e.modes[k];
-            var w = Math.round(Math.min(m.maxPower, (BIKE.maxTorque * e.rpm) / 9.55, ((ASSIST[m.levelMin] + ASSIST[m.levelMax]) / 2) * e.riderW));
+            var w = Math.round(Math.min(m.maxPower, (bikeOf(e.bike).maxTorque * e.rpm) / 9.55, ((ASSIST[m.levelMin] + ASSIST[m.levelMax]) / 2) * e.riderW));
             mine[k] = motorShare(w, e.riderW);
             var s = STOCK[k];
             var ws = Math.round(Math.min(((ASSIST[s[0]] + ASSIST[s[1]]) / 2) * e.riderW, s[2], (s[3] * e.rpm) / 9.55));
@@ -491,7 +515,8 @@
         var batt = function (d) {
             if (!energy) return '';
             var min = Math.max(0, Math.round(energy.minPctAt(d)));
-            return ' Batteria prevista ~' + Math.round(energy.pctAt(d)) + '%. Se sei sotto il ' + min + '%, passa a una modalità più bassa o a RISERVA.';
+            return tr(' Batteria prevista ~' + Math.round(energy.pctAt(d)) + '%. Se sei sotto il ' + min + '%, passa a una modalità più bassa o a RISERVA.',
+                ' Expected battery ~' + Math.round(energy.pctAt(d)) + '%. If you are below ' + min + '%, drop to a lower mode or to RESERVE.');
         };
         var minTxt = function (d) { return energy ? ' · min ' + Math.max(0, Math.round(energy.minPctAt(d))) + '%' : ''; };
         runs.forEach(function (r, i) {
@@ -505,9 +530,10 @@
                 kind: kind, mode: r.mode, dist: d, changeAt: r.start, lat: p.lat, lon: p.lon, ele: p.ele, run: r,
                 battery: energy ? energy.pctAt(d) : null, minBattery: energy ? energy.minPctAt(d) : null,
                 name: (kind === 'start' ? 'START · ' : '') + BP[r.mode].label + ' · ' + fmtKm(r.length) + ' km' + gainTxt + minTxt(d),
-                desc: 'km ' + fmtKm(d) + ': passa a ' + BP[r.mode].label + ' per ' + fmtKm(r.length) + ' km' +
-                    (r.gain >= 20 ? ', D+ ' + Math.round(r.gain) + ' m' : '') +
-                    (r.maxGrade >= 3 ? ', pendenza max ' + Math.round(r.maxGrade) + '%' : '') + '.' + batt(d)
+                note: tr('passa a ', 'switch to ') + BP[r.mode].label + tr(' per ', ' for ') + fmtKm(r.length) + ' km' +
+                    (r.gain >= 20 ? tr(', D+ ', ', climb ') + Math.round(r.gain) + ' m' : '') +
+                    (r.maxGrade >= 3 ? tr(', pendenza max ', ', max grade ') + Math.round(r.maxGrade) + '%' : '') + '.',
+                battText: batt(d)
             });
         });
         // rampe brevi e ripide dentro tratti con meno assistenza della fascia "Ripida"
@@ -534,7 +560,7 @@
                 var d = Math.max(0, rp.start - lead);
                 var lenTxt = Math.round(rp.length / 10) * 10 + ' m';
                 var near = wps.filter(function (w) { return w.kind !== 'boost' && Math.abs(w.dist - d) < 200; })[0];
-                if (near) { near.desc += ' Subito dopo: rampa di ' + lenTxt + ' al ' + Math.round(rp.maxGrade) + '%, usa il Boost.'; return; }
+                if (near) { near.note += tr(' Subito dopo: rampa di ' + lenTxt + ' al ' + Math.round(rp.maxGrade) + '%, usa il Boost.', ' Right after: ' + lenTxt + ' ramp at ' + Math.round(rp.maxGrade) + '%, use Boost.'); return; }
                 own.push({ rp: rp, d: d, lenTxt: lenTxt });
             });
             own.sort(function (x, y) { return y.rp.maxGrade - x.rp.maxGrade; });
@@ -545,13 +571,15 @@
                 wps.push({
                     kind: 'boost', mode: 'boost', dist: d, changeAt: rp.start, lat: p.lat, lon: p.lon, ele: p.ele, run: null,
                     battery: energy ? energy.pctAt(d) : null, minBattery: energy ? energy.minPctAt(d) : null,
-                    name: 'BOOST · rampa ' + lenTxt + ' al ' + Math.round(rp.maxGrade) + '%',
-                    desc: 'km ' + fmtKm(d) + ': rampa breve di ' + lenTxt + ', pendenza max ' + Math.round(rp.maxGrade) +
-                        '%. Usa il Boost senza cambiare modalità.' + batt(d)
+                    name: 'BOOST · ' + tr('rampa ' + lenTxt + ' al ' + Math.round(rp.maxGrade) + '%', lenTxt + ' ramp at ' + Math.round(rp.maxGrade) + '%'),
+                    note: tr('rampa breve di ' + lenTxt + ', pendenza max ' + Math.round(rp.maxGrade) + '%. Usa il Boost senza cambiare modalità.',
+                        'short ' + lenTxt + ' ramp, max grade ' + Math.round(rp.maxGrade) + '%. Use Boost without changing mode.'),
+                    battText: batt(d)
                 });
             });
             wps.sort(function (x, y) { return x.dist - y.dist; });
         }
+        wps.forEach(function (w) { w.desc = 'km ' + fmtKm(w.dist) + ': ' + w.note + (w.battText || ''); });
         return { waypoints: wps, ramps: ramps, droppedBoost: droppedBoost };
     }
 
@@ -638,16 +666,16 @@
         var surface = SURFACES[e.surface] || SURFACES.mixed;
         var surf = surfaceProfile(base, e);
         var tuned = e.modes.auto;
-        var W = e.totalWeight, rider = e.riderW, rpm = e.rpm;
+        var W = e.totalWeight, rider = e.riderW, rpm = e.rpm, bike = bikeOf(e.bike);
         var gTop = Math.max(8, p90);
 
         var wkgTop = lerpPoints(p90, [[6, e.wkg[1]], [10, e.wkg[2]], [15, e.wkg[3]]]);
-        var targetPower = clamp(Math.round(W * wkgTop), BP.auto.minPower, BIKE.maxPower);
+        var targetPower = clamp(Math.round(W * wkgTop), BP.auto.minPower, bike.maxPower);
         var soft = surf.softShare >= 0.25 || steepShare >= 0.12;
 
         function setting(lo, hi, power) {
-            var maxPower = snap(power, 50, BP.auto.minPower, BIKE.maxPower);
-            var torque = snap(Math.round(((maxPower * 9.55) / Math.min(rpm, 60)) * surf.meanTorque), 5, 5, BIKE.maxTorque);
+            var maxPower = snap(power, 50, BP.auto.minPower, bike.maxPower);
+            var torque = snap(Math.round(((maxPower * 9.55) / Math.min(rpm, 60)) * surf.meanTorque), 5, 5, bike.maxTorque);
             return {
                 levelMin: lo, levelMax: hi, pctMin: Math.round(ASSIST[lo] * 100), pctMax: Math.round(ASSIST[hi] * 100),
                 maxPower: maxPower, maxTorque: torque,
@@ -660,7 +688,7 @@
         var refRuns = segment(base, { flat: 'eco', rolling: 'auto', climb: 'trail', steep: 'turbo', extreme: 'turbo' }, 800, 400);
         var anchor = new Array(N);
         refRuns.forEach(function (r) { var a = anchorOf(r, sh, cW); for (var i = r.i0; i <= r.i1; i++) anchor[i] = a; });
-        var torqueCeil = (BIKE.maxTorque * rpm) / 9.55;
+        var torqueCeil = (bike.maxTorque * rpm) / 9.55;
 
         function simulate(st) {
             var lo = ASSIST[st.levelMin], hi = ASSIST[st.levelMax], factor = new Array(N);
@@ -697,10 +725,15 @@
         var wp = buildWaypoints(base, [run], { steep: 'turbo' }, opts, energy, limit ? limit - 1 : Infinity);
         var startWp = wp.waypoints.filter(function (w) { return w.kind === 'start'; })[0];
         if (startWp) {
-            var after = startWp.desc.indexOf(' Subito dopo:') >= 0 ? startWp.desc.slice(startWp.desc.indexOf(' Subito dopo:')) : '';
+            var mark = tr(' Subito dopo:', ' Right after:');
+            var after = startWp.note.indexOf(mark) >= 0 ? startWp.note.slice(startWp.note.indexOf(mark)) : '';
             startWp.name = 'START · AUTO ' + current.levelMin + '–' + current.levelMax + ' · ' + current.maxPower + ' W · min ' + energy.needStartPct + '%';
-            startWp.desc = 'km 0,0: tutto il giro in AUTO, livelli ' + current.levelMin + '–' + current.levelMax + ', potenza max ' +
-                current.maxPower + ' W, coppia max ' + current.maxTorque + ' Nm. Parti con almeno il ' + energy.needStartPct + '%.' + after;
+            startWp.note = tr('tutto il giro in AUTO, livelli ' + current.levelMin + '–' + current.levelMax + ', potenza max ' +
+                current.maxPower + ' W, coppia max ' + current.maxTorque + ' Nm. Parti con almeno il ' + energy.needStartPct + '%.',
+                'whole ride in AUTO, levels ' + current.levelMin + '–' + current.levelMax + ', max power ' +
+                current.maxPower + ' W, max torque ' + current.maxTorque + ' Nm. Start with at least ' + energy.needStartPct + '%.') + after;
+            startWp.battText = '';
+            startWp.desc = 'km ' + fmtKm(0) + ': ' + startWp.note;
         }
         var profile = [];
         for (k = 0; k < N; k += base.stride) profile.push({ d: k * STEP, ele: base.es[k], pct: e.startPct - energy.cum[k] * 100 / e.batteryWh });
@@ -716,7 +749,7 @@
             auto: {
                 setting: current, proposed: proposed, tuned: tunedSetting, tunedEnergy: simulate(tunedSetting),
                 adapted: steps.length > 0, p90: p90, gMax: gMax, steepShare: steepShare, soft: soft,
-                surface: surface, surfaceTorque: surf.meanTorque, surfaceFromOsm: surf.fromOsm, targetPower: targetPower, levelCapped: nearestLevel(targetPower / rider, 3, 15) > 11
+                surface: surface, surfaceKey: SURFACES[e.surface] ? e.surface : 'mixed', surfaceTorque: surf.meanTorque, surfaceFromOsm: surf.fromOsm, targetPower: targetPower, levelCapped: nearestLevel(targetPower / rider, 3, 15) > 11
             }
         };
     };
@@ -751,7 +784,7 @@
     L.buildGpx = function (name, result) {
         var out = ['<?xml version="1.0" encoding="UTF-8"?>',
             '<gpx version="1.1" creator="Avinox Mode Planner" xmlns="http://www.topografix.com/GPX/1/1">',
-            '  <metadata><name>' + xml(name) + '</name><desc>Cambi di modalità Avinox</desc></metadata>'];
+            '  <metadata><name>' + xml(name) + '</name><desc>' + tr('Cambi di modalità Avinox', 'Avinox mode changes') + '</desc></metadata>'];
         result.waypoints.forEach(function (w) {
             out.push('  <wpt lat="' + w.lat.toFixed(6) + '" lon="' + w.lon.toFixed(6) + '">' +
                 '<ele>' + w.ele.toFixed(1) + '</ele><name>' + xml(w.name) + '</name><desc>' + xml(w.desc) + '</desc>' +
@@ -768,10 +801,10 @@
     L.cueText = function (name, result) {
         var en = result.energy;
         var head = name + ' · ' + fmtKm(result.total) + ' km · D+ ' + Math.round(result.gain) + ' m';
-        if (en) head += ' · arrivo stimato ~' + Math.round(en.arrivalPct) + '% (riserva ' + en.reservePct + '%)';
+        if (en) head += tr(' · arrivo stimato ~' + Math.round(en.arrivalPct) + '% (riserva ' + en.reservePct + '%)', ' · expected arrival ~' + Math.round(en.arrivalPct) + '% (reserve ' + en.reservePct + '%)');
         var lines = [head];
         result.waypoints.forEach(function (w) {
-            lines.push('km ' + fmtKm(w.dist).padStart(5, ' ') + '  ' + w.name + (w.battery != null ? '  (prevista ~' + Math.round(w.battery) + '%)' : ''));
+            lines.push('km ' + fmtKm(w.dist).padStart(5, ' ') + '  ' + w.name + (w.battery != null ? tr('  (prevista ~', '  (expected ~') + Math.round(w.battery) + '%)' : ''));
         });
         return lines.join('\n');
     };
@@ -847,9 +880,9 @@
                 ele: Math.round(eleAt(cd) * 10) / 10
             });
         }
-        return { name: 'Anello di esempio', points: pts };
+        return { name: tr('Anello di esempio', 'Example loop'), points: pts };
     };
 
-    L.positionAt = positionAt; L.SURFACES = SURFACES; L.TEMPERATURES = TEMPERATURES; L.VOICE_LABELS = VOICE_LABELS; L.FACTOR_RANGE = [FACTOR_MIN, FACTOR_MAX]; L.BAND_ORDER = BAND_ORDER; L.BANDS = BANDS; L.BP = BP; L.MODE_KEYS = MODE_KEYS; L.PRESETS = PRESETS; L.RANK = RANK; L.fmtKm = fmtKm;
+    L.dec = dec; L.BIKES = BIKES; L.BATTERIES = BATTERIES; L.positionAt = positionAt; L.SURFACES = SURFACES; L.TEMPERATURES = TEMPERATURES; L.VOICE_LABELS = VOICE_LABELS; L.FACTOR_RANGE = [FACTOR_MIN, FACTOR_MAX]; L.BAND_ORDER = BAND_ORDER; L.BANDS = BANDS; L.BP = BP; L.MODE_KEYS = MODE_KEYS; L.PRESETS = PRESETS; L.RANK = RANK; L.fmtKm = fmtKm;
     if (typeof module !== 'undefined' && module.exports) module.exports = L; else root.AvinoxPlanner = L;
 })(this);

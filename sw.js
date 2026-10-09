@@ -3,9 +3,9 @@
  * - font di Google: prima la copia salvata
  * - OpenStreetMap (Overpass): sempre e solo rete, mai in cache
  */
-var CACHE = 'avinox-mode-planner-v2';
+var CACHE = 'avinox-mode-planner-v3';
 var APP = [
-  './', 'index.html', 'planner.js', 'surface-osm.js', 'manifest.webmanifest',
+  './', 'index.html', 'planner.js', 'surface-osm.js', 'i18n.js', 'app.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
   'icons/apple-touch-icon.png', 'icons/favicon-32.png'
 ];

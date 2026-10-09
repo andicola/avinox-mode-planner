@@ -12,8 +12,21 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<meta name="description" content="Schema delle modalità DJI Avinox e waypoint di cambio modalità da GPX per Wikiloc, con stima della batteria.">
 <title>Avinox Mode Planner</title>
+<meta name="description" content="Impostazioni delle modalità DJI Avinox (M2 e M2S) e waypoint di cambio modalità da GPX per Wikiloc, con stima della batteria. Mode settings and mode-change waypoints for DJI Avinox e-bikes.">
+<link rel="canonical" href="https://avinox-planner.pages.dev/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Avinox Mode Planner">
+<meta property="og:url" content="https://avinox-planner.pages.dev/">
+<meta property="og:title" content="Avinox Mode Planner">
+<meta property="og:description" content="Come impostare ECO, AUTO, TRAIL e TURBO e quando cambiarle lungo il giro, con la batteria prevista. Mode settings and when to change them along your ride. Gratis, in italiano e in inglese.">
+<meta property="og:image" content="https://avinox-planner.pages.dev/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Logo di Avinox Mode Planner: quattro barre colorate che salgono come un profilo altimetrico, con un waypoint sopra l'ultima.">
+<meta property="og:locale" content="it_IT">
+<meta property="og:locale:alternate" content="en_GB">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -253,16 +266,42 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
 @media (prefers-reduced-motion: no-preference) {
   .share-bar i { transition: width .35s ease; }
 }
+
+/* ---------- barra in alto: lingua e donazioni ---------- */
+.topbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 16px; }
+.top-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.lang { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.lang button { border: 0; background: var(--bg); padding: 6px 11px; font-family: var(--f-data); font-size: 12.5px; font-weight: 600; letter-spacing: .06em; cursor: pointer; }
+.lang button + button { border-left: 1px solid var(--line); }
+.lang button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+a.btn { color: inherit; text-decoration: none; }
+a.btn.primary { color: var(--bg); }
+.btn.donate { padding: 6px 12px; font-size: 13.5px; }
+.btn.donate svg { width: 15px; height: 15px; flex: none; color: var(--turbo); }
+.btn.primary.donate svg { color: var(--bg); }
+.donate-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; border: 1px solid var(--line); border-left: 6px solid var(--turbo); border-radius: var(--r); background: var(--panel); padding: 16px 18px; }
+.donate-box div { display: grid; gap: 4px; max-width: 62ch; }
+.donate-box h2 { font-size: 22px; font-weight: 600; text-transform: uppercase; }
+.donate-box p { font-size: 14.5px; color: var(--muted); }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="callout move" id="moveBanner" hidden>
-    <p>L'app ha un nuovo indirizzo: <a id="moveLink" href="#" target="_blank" rel="noopener"></a>. Per portare là impostazioni e giri di taratura tocca <b>Esporta dati</b> qui, poi <b>Importa dati</b> nella nuova app. Se l'avevi aggiunta alla schermata Home, aggiungi anche quella nuova.</p>
-    <div><button type="button" class="btn" id="moveExport">Esporta dati</button></div>
+    <p><span data-i18n="move.lead">L'app ha un nuovo indirizzo:</span> <a id="moveLink" href="https://avinox-planner.pages.dev/" target="_blank" rel="noopener">avinox-planner.pages.dev</a>. <span data-i18n-html="move.rest">Per portare là impostazioni e giri di taratura tocca <b>Esporta dati</b> qui, poi <b>Importa dati</b> nella nuova app. Se l'avevi aggiunta alla schermata Home, aggiungi anche quella nuova.</span></p>
+    <div><button type="button" class="btn" id="moveExport" data-i18n="btn.export">Esporta dati</button></div>
   </div>
   <header class="mast">
-    <div class="eyebrow">Amflow PR Carbon Pro · Avinox M2S</div>
+    <div class="topbar">
+      <div class="eyebrow">DJI Avinox M2 · M2S</div>
+      <div class="top-actions">
+        <div class="lang" id="langSeg" role="group" aria-label="Lingua" data-i18n-aria="lang.label">
+          <button type="button" data-lang="it" lang="it" title="Italiano" aria-pressed="true">IT</button>
+          <button type="button" data-lang="en" lang="en" title="English" aria-pressed="false">EN</button>
+        </div>
+        <a class="btn donate donate-link" href="https://paypal.me/andicola" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span data-i18n="donate.btn">Sostieni il progetto</span></a>
+      </div>
+    </div>
     <h1><svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true">
   <rect width="512" height="512" rx="112" fill="#161A19"/>
   <g transform="translate(-22 14) scale(1)">
@@ -275,58 +314,62 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     <circle cx="415.8" cy="80.0" r="12.6" fill="#161A19"/>
   </g>
 </svg><span>Avinox Mode Planner</span></h1>
-    <p>In alto i numeri da inserire nell'app Avinox per ogni modalità. Sotto, il giro diviso in tratti con la batteria prevista: dove la modalità giusta cambia nasce un waypoint da importare su Wikiloc e da seguire con l'Apple Watch.</p>
+    <p data-i18n="intro">In alto i numeri da inserire nell'app Avinox per ogni modalità. Sotto, il giro diviso in tratti con la batteria prevista: dove la modalità giusta cambia nasce un waypoint da importare su Wikiloc e da seguire con l'orologio.</p>
   </header>
 
   <section aria-labelledby="h-schema">
     <div class="sec-head">
-      <h2 id="h-schema">Schema modalità</h2>
-      <p>Stesso calcolo di Avinox Setup Calculator, ridotto a quello che serve davanti all'app.</p>
+      <h2 id="h-schema" data-i18n="schema.title">Schema modalità</h2>
+      <p data-i18n="schema.sub">Stesso calcolo di Avinox Setup Calculator, ridotto a quello che serve davanti all'app.</p>
     </div>
     <div class="schema">
       <form class="inputs" id="riderForm" autocomplete="off">
         <div class="row2">
-          <div class="field"><label for="riderWeight">Tu, con attrezzatura (kg)</label><input type="number" id="riderWeight" min="30" max="200" step="0.5" value="82"></div>
-          <div class="field"><label for="bikeWeight">Bici (kg)</label><input type="number" id="bikeWeight" min="10" max="40" step="0.1" value="24.2"></div>
+          <div class="field"><label for="riderWeight" data-i18n="f.rider">Tu, con attrezzatura (kg)</label><input type="number" id="riderWeight" min="30" max="200" step="0.5" value="82"></div>
+          <div class="field"><label for="bikeWeight" data-i18n="f.bikeW">Bici (kg)</label><input type="number" id="bikeWeight" min="10" max="40" step="0.1" value="24.2"></div>
         </div>
         <div class="field">
-          <label for="battery">Batteria</label>
-          <select id="battery"><option value="RS800">RS800 · 800 Wh</option><option value="RS600">RS600 · 600 Wh</option></select>
+          <span class="lbl" id="bikeLbl" data-i18n="f.motor">Motore</span>
+          <div class="seg two" role="group" aria-labelledby="bikeLbl" id="bikeSeg">
+            <button type="button" data-bike="M2S" aria-pressed="true">Avinox M2S</button>
+            <button type="button" data-bike="M2" aria-pressed="false">Avinox M2</button>
+          </div>
         </div>
+        <div class="field"><label for="battery" data-i18n="f.battery">Batteria</label><select id="battery"><option value="RS800">RS800 · 800 Wh</option></select></div>
         <div class="field">
-          <span class="lbl" id="effortLbl">Quanto spingi sui pedali in salita</span>
+          <span class="lbl" id="effortLbl" data-i18n="f.effort">Quanto spingi sui pedali in salita</span>
           <div class="seg four" role="group" aria-labelledby="effortLbl" id="effortSeg">
-            <button type="button" data-effort="poco" aria-pressed="false">Poco</button>
-            <button type="button" data-effort="normale" aria-pressed="true">Normale</button>
-            <button type="button" data-effort="tanto" aria-pressed="false">Tanto</button>
-            <button type="button" data-effort="manuale" aria-pressed="false">Lo so</button>
+            <button type="button" data-effort="poco" aria-pressed="false" data-i18n="effort.poco">Poco</button>
+            <button type="button" data-effort="normale" aria-pressed="true" data-i18n="effort.normale">Normale</button>
+            <button type="button" data-effort="tanto" aria-pressed="false" data-i18n="effort.tanto">Tanto</button>
+            <button type="button" data-effort="manuale" aria-pressed="false" data-i18n="effort.manuale">Lo so</button>
           </div>
           <span class="effort-est" id="effortEst"></span>
           <div class="manual-in" id="manualIn" hidden>
             <div class="row2">
-              <div class="field"><label for="riderPower">Tua potenza (W)</label><input type="number" id="riderPower" min="20" max="600" step="5" value="150"></div>
-              <div class="field"><label for="cadence">Cadenza (rpm)</label><input type="number" id="cadence" min="20" max="140" step="1" value="80"></div>
+              <div class="field"><label for="riderPower" data-i18n="f.power">Tua potenza (W)</label><input type="number" id="riderPower" min="20" max="600" step="5" value="150"></div>
+              <div class="field"><label for="cadence" data-i18n="f.cadence">Cadenza (rpm)</label><input type="number" id="cadence" min="20" max="140" step="1" value="80"></div>
             </div>
-            <span class="hint">La potenza del ciclista mentre spingi su una salita regolare, non la media del giro con discese e soste.</span>
+            <span class="hint" data-i18n="hint.power">La potenza del ciclista mentre spingi su una salita regolare, non la media del giro con discese e soste.</span>
           </div>
         </div>
         <div class="field">
-          <span class="lbl" id="styleLbl">Stile</span>
+          <span class="lbl" id="styleLbl" data-i18n="f.style">Stile</span>
           <div class="seg" role="group" aria-labelledby="styleLbl" id="styleSeg">
-            <button type="button" data-style="risparmio" aria-pressed="false">Risparmio</button>
-            <button type="button" data-style="bilanciato" aria-pressed="true">Bilanciato</button>
-            <button type="button" data-style="enduro" aria-pressed="false">Enduro</button>
+            <button type="button" data-style="risparmio" aria-pressed="false" data-i18n="style.risparmio">Risparmio</button>
+            <button type="button" data-style="bilanciato" aria-pressed="true" data-i18n="style.bilanciato">Bilanciato</button>
+            <button type="button" data-style="enduro" aria-pressed="false" data-i18n="style.enduro">Enduro</button>
           </div>
           <span class="hint" id="styleHint"></span>
         </div>
         <details class="why">
-          <summary>Non conosci potenza e cadenza?</summary>
+          <summary data-i18n="why.summary">Non conosci potenza e cadenza?</summary>
           <ul>
-            <li>Il livello di assistenza moltiplica la tua spinta: chi spinge meno ha bisogno di un livello più alto per avere lo stesso aiuto. Per questo serve sapere quanto spingi.</li>
-            <li>Se non lo sai, scegli Poco, Normale o Tanto: la pagina stima la potenza dal tuo peso (1,2, 1,6 o 2,2 W per kg).</li>
-            <li>La cadenza conta poco: tra 60 e 100 rpm lo schema non cambia. Con le stime la pagina usa 80 rpm.</li>
-            <li>Per misurarle: dall'app Avinox puoi scegliere i dati mostrati sul display. Se ci sono potenza del ciclista e cadenza, guardale dopo un paio di minuti di salita regolare e inseriscile con "Lo so".</li>
-            <li>Dopo il primo giro: se l'assistenza ti sembra troppa, scegli una spinta più alta e i livelli scendono; se ti sembra poca, una più bassa.</li>
+            <li data-i18n="why.1">Il livello di assistenza moltiplica la tua spinta: chi spinge meno ha bisogno di un livello più alto per avere lo stesso aiuto. Per questo serve sapere quanto spingi.</li>
+            <li data-i18n="why.2">Se non lo sai, scegli Poco, Normale o Tanto: la pagina stima la potenza dal tuo peso (1,2, 1,6 o 2,2 W per kg).</li>
+            <li data-i18n="why.3">La cadenza conta poco: tra 60 e 100 rpm lo schema non cambia. Con le stime la pagina usa 80 rpm.</li>
+            <li data-i18n="why.4">Per misurarle: dall'app Avinox puoi scegliere i dati mostrati sul display. Se ci sono potenza del ciclista e cadenza, guardale dopo un paio di minuti di salita regolare e inseriscile con "Lo so".</li>
+            <li data-i18n="why.5">Dopo il primo giro: se l'assistenza ti sembra troppa, scegli una spinta più alta e i livelli scendono; se ti sembra poca, una più bassa.</li>
           </ul>
         </details>
       </form>
@@ -334,79 +377,79 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
       <div class="sheet">
         <div class="sheet-top">
           <div>
-            <h3>Impostazioni app</h3>
+            <h3 data-i18n="sheet.title">Impostazioni app</h3>
             <div class="meta" id="sheetMeta"></div>
           </div>
-          <button type="button" class="btn" id="copySchema">Copia schema</button>
+          <button type="button" class="btn" id="copySchema" data-i18n="btn.copySchema">Copia schema</button>
         </div>
         <div id="modes"></div>
         <div class="sheet-foot" id="sheetFoot"></div>
-        <div class="manual" id="schemaManual" hidden><textarea id="schemaManualText" readonly aria-label="Schema da copiare"></textarea></div>
+        <div class="manual" id="schemaManual" hidden><textarea id="schemaManualText" readonly aria-label="Testo da copiare" data-i18n-aria="aria.copyText"></textarea></div>
       </div>
     </div>
   </section>
 
   <section aria-labelledby="h-route">
     <div class="sec-head">
-      <h2 id="h-route">Percorso, batteria e avvisi</h2>
-      <p>Le pendenze sono misurate su finestre di 140 m e ogni fascia ha la sua modalità. Se con quelle modalità arriveresti sotto la riserva che scegli, il piano abbassa l'assistenza dove costa meno fatica, partendo dai tratti più facili.</p>
+      <h2 id="h-route" data-i18n="route.title">Percorso, batteria e avvisi</h2>
+      <p data-i18n="route.sub">Le pendenze sono misurate su finestre di 140 m e ogni fascia ha la sua modalità. Se con quelle modalità arriveresti sotto la riserva che scegli, il piano abbassa l'assistenza dove costa meno fatica, partendo dai tratti più facili.</p>
     </div>
 
     <div class="route-bar">
-      <label class="btn primary file-btn" for="gpxFile">Carica GPX o KML<input type="file" id="gpxFile" accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml"></label>
+      <label class="btn primary file-btn" for="gpxFile"><span data-i18n="btn.load">Carica GPX o KML</span><input type="file" id="gpxFile" accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml"></label>
       <div class="route-id"><strong id="routeName"></strong><span id="routeMeta"></span></div>
       <div class="error" id="routeError" hidden></div>
     </div>
 
     <div class="strategy">
-      <span class="lbl" id="stratLbl" style="font-size:13px;font-weight:600;color:var(--muted)">Come vuoi fare il giro</span>
+      <span class="lbl" id="stratLbl" style="font-size:13px;font-weight:600;color:var(--muted)" data-i18n="strat.label">Come vuoi fare il giro</span>
       <div class="seg two" role="group" aria-labelledby="stratLbl" id="stratSeg">
-        <button type="button" data-strategy="waypoint" aria-pressed="true">Cambio modalità con gli avvisi</button>
-        <button type="button" data-strategy="auto" aria-pressed="false">Tutto in AUTO</button>
+        <button type="button" data-strategy="waypoint" aria-pressed="true" data-i18n="strat.waypoint">Cambio modalità con gli avvisi</button>
+        <button type="button" data-strategy="auto" aria-pressed="false" data-i18n="strat.auto">Tutto in AUTO</button>
       </div>
       <p class="hint" id="stratHint"></p>
     </div>
 
     <div class="opts">
       <fieldset class="grp grp-map">
-        <legend>Modalità per pendenza</legend>
+        <legend data-i18n="grp.map">Modalità per pendenza</legend>
         <div class="map-grid" id="mapGrid">
-          <div class="field"><label for="m-flat">Pianura &lt; 3%</label><select id="m-flat" data-band="flat"></select><span class="adapted" data-for="flat"></span></div>
-          <div class="field"><label for="m-rolling">Ondulato 3–7%</label><select id="m-rolling" data-band="rolling"></select><span class="adapted" data-for="rolling"></span></div>
-          <div class="field"><label for="m-climb">Salita 7–12%</label><select id="m-climb" data-band="climb"></select><span class="adapted" data-for="climb"></span></div>
-          <div class="field"><label for="m-steep">Ripida 12–18%</label><select id="m-steep" data-band="steep"></select><span class="adapted" data-for="steep"></span></div>
-          <div class="field"><label for="m-extreme">Estrema &gt; 18%</label><select id="m-extreme" data-band="extreme"></select><span class="adapted" data-for="extreme"></span></div>
+          <div class="field"><label for="m-flat" data-i18n="band.flat">Pianura &lt; 3%</label><select id="m-flat" data-band="flat"></select><span class="adapted" data-for="flat"></span></div>
+          <div class="field"><label for="m-rolling" data-i18n="band.rolling">Ondulato 3–7%</label><select id="m-rolling" data-band="rolling"></select><span class="adapted" data-for="rolling"></span></div>
+          <div class="field"><label for="m-climb" data-i18n="band.climb">Salita 7–12%</label><select id="m-climb" data-band="climb"></select><span class="adapted" data-for="climb"></span></div>
+          <div class="field"><label for="m-steep" data-i18n="band.steep">Ripida 12–18%</label><select id="m-steep" data-band="steep"></select><span class="adapted" data-for="steep"></span></div>
+          <div class="field"><label for="m-extreme" data-i18n="band.extreme">Estrema &gt; 18%</label><select id="m-extreme" data-band="extreme"></select><span class="adapted" data-for="extreme"></span></div>
         </div>
-        <p class="hint">In discesa la modalità non cambia: resta quella del tratto prima.</p>
+        <p class="hint" data-i18n="map.hint">In discesa la modalità non cambia: resta quella del tratto prima.</p>
       </fieldset>
 
       <fieldset class="grp">
-        <legend>Batteria</legend>
-        <div class="field"><label for="startPct">Carica alla partenza</label>
+        <legend data-i18n="grp.battery">Batteria</legend>
+        <div class="field"><label for="startPct" data-i18n="f.startPct">Carica alla partenza</label>
           <div class="slider"><input type="range" id="startPct" min="30" max="100" step="5" value="100"><output id="startOut" for="startPct">100%</output></div></div>
-        <div class="field"><label for="reservePct">Batteria residua all'arrivo</label>
+        <div class="field"><label for="reservePct" data-i18n="f.reservePct">Batteria residua all'arrivo</label>
           <div class="slider"><input type="range" id="reservePct" min="0" max="60" step="5" value="15"><output id="reserveOut" for="reservePct">15%</output></div></div>
-        <div class="field"><label for="temperature">Temperatura prevista</label><select id="temperature"></select>
-          <span class="hint">Col freddo la batteria rende meno: la stima riduce la capacità in modo prudente.</span></div>
-        <div class="field"><label for="surface">Fondo prevalente</label><select id="surface"></select>
-          <div class="osm-row"><button type="button" class="btn" id="osmBtn">Leggi il fondo da OpenStreetMap</button><span class="hint" id="osmStatus"></span></div></div>
-        <label class="check" for="adaptChk"><input type="checkbox" id="adaptChk" checked> <span id="adaptTxt">Se non basta, abbassa le modalità per arrivare con questa riserva</span></label>
+        <div class="field"><label for="temperature" data-i18n="f.temperature">Temperatura prevista</label><select id="temperature"></select>
+          <span class="hint" data-i18n="hint.temperature">Col freddo la batteria rende meno: la stima riduce la capacità in modo prudente.</span></div>
+        <div class="field"><label for="surface" data-i18n="f.surface">Fondo prevalente</label><select id="surface"></select>
+          <div class="osm-row"><button type="button" class="btn" id="osmBtn" data-i18n="btn.osm">Leggi il fondo da OpenStreetMap</button><span class="hint" id="osmStatus"></span></div></div>
+        <label class="check" for="adaptChk"><input type="checkbox" id="adaptChk" checked> <span id="adaptTxt"></span></label>
       </fieldset>
 
       <fieldset class="grp">
-        <legend>Avvisi</legend>
+        <legend data-i18n="grp.alerts">Avvisi</legend>
         <div class="two">
-          <div class="field" id="sensField"><label for="sens">Quanti avvisi</label>
-            <select id="sens"><option value="alta">Molti</option><option value="media" selected>Equilibrati</option><option value="bassa">Pochi</option></select>
+          <div class="field" id="sensField"><label for="sens" data-i18n="f.sens">Quanti avvisi</label>
+            <select id="sens"></select>
             <span class="hint" id="sensHint"></span></div>
-          <div class="field"><label for="lead">Anticipo sulle salite</label>
+          <div class="field"><label for="lead" data-i18n="f.lead">Anticipo sulle salite</label>
             <select id="lead"><option value="0">0 m</option><option value="50">50 m</option><option value="100" selected>100 m</option><option value="200">200 m</option></select>
-            <span class="hint">L'avviso arriva prima dell'inizio.</span></div>
+            <span class="hint" data-i18n="hint.lead">L'avviso arriva prima dell'inizio.</span></div>
         </div>
-        <div class="field"><label for="maxWp">Massimo waypoint per file</label>
+        <div class="field"><label for="maxWp" data-i18n="f.maxWp">Massimo waypoint per file</label>
           <input type="number" id="maxWp" min="2" max="500" step="1" value="25" style="max-width:120px">
-          <span class="hint">Wikiloc ne accetta al massimo 25 per percorso: se ne servono di più, la pagina unisce i tratti più corti.</span></div>
-        <label class="check" for="boostChk"><input type="checkbox" id="boostChk"> Avvisa anche le rampe brevi (80–300 m oltre il 14%) da fare col Boost</label>
+          <span class="hint" data-i18n="hint.maxWp">Wikiloc ne accetta al massimo 25 per percorso: se ne servono di più, la pagina unisce i tratti più corti.</span></div>
+        <label class="check" for="boostChk"><input type="checkbox" id="boostChk"> <span data-i18n="boostChk">Avvisa anche le rampe brevi (80–300 m oltre il 14%) da fare col Boost</span></label>
       </fieldset>
     </div>
 
@@ -418,812 +461,82 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     <div class="route-grid">
       <figure class="shape">
         <div id="shape"></div>
-        <figcaption>Forma della traccia, nord in alto. Il cerchio vuoto è la partenza.</figcaption>
+        <figcaption data-i18n="shape.caption">Forma della traccia, nord in alto. Il cerchio vuoto è la partenza.</figcaption>
       </figure>
       <div class="cues">
         <div class="cues-head">
-          <h3>Waypoint</h3>
+          <h3 data-i18n="cues.title">Waypoint</h3>
           <div class="actions">
-            <button type="button" class="btn primary" id="dlBtn" hidden>Scarica GPX per Wikiloc</button>
-            <button type="button" class="btn" id="copyCues">Copia lista</button>
-            <button type="button" class="btn" id="copyGpx">Copia GPX</button>
+            <button type="button" class="btn primary" id="dlBtn" hidden data-i18n="btn.download">Scarica GPX per Wikiloc</button>
+            <button type="button" class="btn" id="copyCues" data-i18n="btn.copyList">Copia lista</button>
+            <button type="button" class="btn" id="copyGpx" data-i18n="btn.copyGpx">Copia GPX</button>
           </div>
         </div>
         <ol class="cue-list" id="cueList"></ol>
         <div class="status" id="dlStatus" role="status"></div>
-        <div class="manual" id="cueManual" hidden><textarea id="cueManualText" readonly aria-label="Testo da copiare"></textarea></div>
+        <div class="manual" id="cueManual" hidden><textarea id="cueManualText" readonly aria-label="Testo da copiare" data-i18n-aria="aria.copyText"></textarea></div>
       </div>
     </div>
 
     <div class="calib" id="calib">
-      <h3>Taratura dopo il giro</h3>
-      <p class="hint" style="font-size:14px">Hai fatto questo giro seguendo il piano qui sopra? Scrivi la batteria alla partenza e all'arrivo: la pagina confronta il consumo vero con la stima e corregge le prossime. I giri restano salvati solo in questo browser.</p>
+      <h3 data-i18n="calib.title">Taratura dopo il giro</h3>
+      <p class="hint" style="font-size:14px" data-i18n="calib.text">Hai fatto questo giro seguendo il piano qui sopra? Scrivi la batteria alla partenza e all'arrivo: la pagina confronta il consumo vero con la stima e corregge le prossime. I giri restano salvati solo in questo browser.</p>
       <form class="calib-form" id="calibForm" autocomplete="off">
-        <div class="field"><label for="calStart">Partenza (%)</label><input type="number" id="calStart" min="1" max="100" step="1" value="100"></div>
-        <div class="field"><label for="calEnd">Arrivo (%)</label><input type="number" id="calEnd" min="0" max="100" step="1" placeholder="es. 34"></div>
-        <button type="submit" class="btn primary" id="calSave">Salva il giro</button>
+        <div class="field"><label for="calStart" data-i18n="f.calStart">Partenza (%)</label><input type="number" id="calStart" min="1" max="100" step="1" value="100"></div>
+        <div class="field"><label for="calEnd" data-i18n="f.calEnd">Arrivo (%)</label><input type="number" id="calEnd" min="0" max="100" step="1" placeholder="es. 34" data-i18n-ph="calEnd.ph"></div>
+        <button type="submit" class="btn primary" id="calSave" data-i18n="btn.saveRide">Salva il giro</button>
       </form>
       <p class="hint" id="calMsg"></p>
-      <label class="check" for="calUse"><input type="checkbox" id="calUse" checked> <span id="calUseTxt">Usa la taratura nelle stime</span></label>
+      <label class="check" for="calUse"><input type="checkbox" id="calUse" checked> <span id="calUseTxt"></span></label>
       <ul class="rides" id="rides"></ul>
     </div>
   </section>
 
   <section aria-labelledby="h-how">
-    <div class="sec-head"><h2 id="h-how">Dal file al polso</h2></div>
+    <div class="sec-head"><h2 id="h-how" data-i18n="how.title">Dal file al polso</h2></div>
     <ol class="howto">
-      <li><h3>Imposta le modalità</h3><p>Nell'app Avinox inserisci per ogni modalità livello, potenza e coppia della scheda. AUTO e TRAIL hanno un minimo e un massimo.</p></li>
-      <li><h3>Importa su Wikiloc</h3><p>Scarica il file e importa il .gpx su Wikiloc (se arriva in uno zip, su iPhone si apre toccandolo nell'app File). Controlla che i waypoint compaiano lungo la traccia.</p></li>
-      <li><h3>Prova corta</h3><p>Prima del giro vero fai un anello vicino casa con due waypoint e verifica che l'Apple Watch vibri quando ci passi. Wikiloc documenta l'avviso fuori traccia; quello sui waypoint va provato.</p></li>
-      <li><h3>In sella</h3><p>Parti nella modalità del waypoint START. Quando vibra, cambia col comando al manubrio e guarda la batteria: se è sotto la minima scritta nel waypoint, scendi di una modalità o passa a RISERVA. Sulle rampe brevi usa il Boost.</p></li>
+      <li><h3 data-i18n="how.1t">Imposta le modalità</h3><p data-i18n="how.1">Nell'app Avinox inserisci per ogni modalità livello, potenza e coppia della scheda. AUTO e TRAIL hanno un minimo e un massimo.</p></li>
+      <li><h3 data-i18n="how.2t">Importa su Wikiloc</h3><p data-i18n="how.2">Scarica il file e importa il .gpx su Wikiloc (se arriva in uno zip, su iPhone si apre toccandolo nell'app File). Controlla che i waypoint compaiano lungo la traccia.</p></li>
+      <li><h3 data-i18n="how.3t">Prova corta</h3><p data-i18n="how.3">Prima del giro vero fai un anello vicino casa con due waypoint e verifica che l'orologio vibri quando ci passi. Wikiloc documenta l'avviso fuori traccia; quello sui waypoint va provato.</p></li>
+      <li><h3 data-i18n="how.4t">In sella</h3><p data-i18n="how.4">Parti nella modalità del waypoint START. Quando vibra, cambia col comando al manubrio e guarda la batteria: se è sotto la minima scritta nel waypoint, scendi di una modalità o passa a RISERVA. Sulle rampe brevi usa il Boost.</p></li>
     </ol>
   </section>
 
   <section class="install" id="install" aria-labelledby="h-install">
-    <h2 id="h-install" style="font-size:22px;font-weight:600;text-transform:uppercase">Usala come app sull'iPhone</h2>
+    <h2 id="h-install" style="font-size:22px;font-weight:600;text-transform:uppercase" data-i18n="install.title">Usala come app sul telefono</h2>
     <ol>
-      <li>Apri <code>https://avinox-planner.pages.dev</code> con <b>Safari</b>.</li>
-      <li>Tocca <b>Condividi</b> (il quadrato con la freccia) e poi <b>Aggiungi alla schermata Home</b>.</li>
-      <li>Aprila dall'icona: si apre a tutto schermo e funziona anche senza rete. Serve la rete solo per leggere il fondo da OpenStreetMap.</li>
+      <li data-i18n-html="install.1">Apri <code>https://avinox-planner.pages.dev</code>: su iPhone con <b>Safari</b>, su Android con <b>Chrome</b>.</li>
+      <li data-i18n-html="install.2">iPhone: tocca <b>Condividi</b> (il quadrato con la freccia) e poi <b>Aggiungi alla schermata Home</b>. Android: menu ⋮ e poi <b>Installa app</b>.</li>
+      <li data-i18n-html="install.3">Aprila dall'icona: si apre a tutto schermo e funziona anche senza rete. Serve la rete solo per leggere il fondo da OpenStreetMap.</li>
     </ol>
   </section>
 
   <section class="data-io" aria-labelledby="h-data">
-    <h2 id="h-data" style="font-size:22px;font-weight:600;text-transform:uppercase">I tuoi dati</h2>
-    <p class="hint" style="font-size:14px">Impostazioni e giri di taratura restano solo in questo browser. Per portarli su un altro telefono o su un nuovo indirizzo dell'app: esporta qui e importa di là.</p>
+    <h2 id="h-data" style="font-size:22px;font-weight:600;text-transform:uppercase" data-i18n="data.title">I tuoi dati</h2>
+    <p class="hint" style="font-size:14px" data-i18n="data.text">Impostazioni e giri di taratura restano solo in questo browser. Per portarli su un altro telefono o su un nuovo indirizzo dell'app: esporta qui e importa di là.</p>
     <div class="actions">
-      <button type="button" class="btn" id="exportBtn">Esporta dati</button>
-      <label class="btn file-btn" for="importFile">Importa dati<input type="file" id="importFile" accept=".json,application/json"></label>
+      <button type="button" class="btn" id="exportBtn" data-i18n="btn.export">Esporta dati</button>
+      <label class="btn file-btn" for="importFile"><span data-i18n="btn.import">Importa dati</span><input type="file" id="importFile" accept=".json,application/json"></label>
     </div>
     <p class="hint" id="dataMsg" role="status"></p>
   </section>
 
+  <section class="donate-box" id="donate" aria-labelledby="h-donate">
+    <div>
+      <h2 id="h-donate" data-i18n="donate.btn">Sostieni il progetto</h2>
+      <p data-i18n="donate.text">Gratis, senza pubblicità e senza raccolta di dati. Se ti è utile, puoi offrirmi un caffè.</p>
+    </div>
+    <a class="btn primary donate donate-link" href="https://paypal.me/andicola" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span data-i18n="donate.paypal">Dona con PayPal</span></a>
+  </section>
+
   <footer class="foot">
-    <p>Calcolo delle modalità e modello di consumo: porting lato browser di <a href="https://github.com/lucad87/avinox-setup-app" target="_blank" rel="noopener">avinox-setup-app</a> di Luca Donnaloia (licenza MIT, <a href="https://avinox-calculator.lucad.cloud/" target="_blank" rel="noopener">versione online</a>), applicato tratto per tratto. Le percentuali per livello sono dati della community, non specifiche DJI; la stima della batteria ha un margine di circa ±22%.</p>
-    <p>Il file GPX viene letto solo nel browser e non viene caricato da nessuna parte.</p>
+    <p data-i18n-html="foot.credits">Calcolo delle modalità, modello di consumo e lettura del fondo: porting lato browser di <a href="https://github.com/lucad87/avinox-setup-app" target="_blank" rel="noopener">avinox-setup-app</a> di Luca Donnaloia (licenza MIT, <a href="https://avinox-calculator.lucad.cloud/" target="_blank" rel="noopener">versione online</a>), applicato tratto per tratto. Le percentuali per livello sono dati della community, non specifiche DJI; la stima della batteria ha un margine di circa ±22%.</p>
+    <p data-i18n-html="foot.privacy">Il file GPX viene letto solo nel browser e non viene caricato da nessuna parte. Progetto non ufficiale, non affiliato a DJI né ad Amflow. <a href="https://github.com/andicola/avinox-mode-planner" target="_blank" rel="noopener">Codice su GitHub</a>.</p>
   </footer>
 </div>
-
 <script src="surface-osm.js"></script>
 <script src="planner.js"></script>
-<script>
-(function () {
-  'use strict';
-  var P = window.AvinoxPlanner;
-  var $ = function (id) { return document.getElementById(id); };
-  var LABEL = { eco: 'ECO', auto: 'AUTO', trail: 'TRAIL', turbo: 'TURBO', boost: 'BOOST' };
-  var BAND_LABEL = { flat: 'Pianura', rolling: 'Ondulato', climb: 'Salita', steep: 'Ripida', extreme: 'Estrema' };
-  var SENS = { alta: { minUp: 300, minLen: 500 }, media: { minUp: 400, minLen: 800 }, bassa: { minUp: 600, minLen: 1200 } };
-  var DEFAULT_MAP = { flat: 'eco', rolling: 'auto', climb: 'trail', steep: 'turbo', extreme: 'turbo' };
-  var BATTERY_WH = { RS800: 800, RS600: 600 };
-  var STORE_KEY = 'avinox-mode-planner-v1';
-  /* Spinta stimata dal peso del ciclista quando potenza e cadenza non sono note. */
-  var EFFORT = { poco: { wkg: 1.2, label: 'Poco' }, normale: { wkg: 1.6, label: 'Normale' }, tanto: { wkg: 2.2, label: 'Tanto' } };
-  var EST_CADENCE = 80;
-
-  var state = {
-    rider: { riderWeight: 82, bikeWeight: 24.2, battery: 'RS800', style: 'bilanciato', effort: 'normale', riderPower: 150, cadence: 80 },
-    route: { strategy: 'waypoint', maxWp: 25, temperature: 'warm', useCal: true, mapping: Object.assign({}, DEFAULT_MAP), sens: 'media', lead: 100, boost: false, startPct: 100, reservePct: 15, surface: 'mixed', adapt: true },
-    modes: null, file: null, base: null, result: null, schemaText: '', osm: null, rides: []
-  };
-  var RIDES_KEY = 'avinox-mode-planner-rides';
-  var NEW_HOME = 'https://avinox-planner.pages.dev/';   // indirizzo principale dell'app (Cloudflare Pages)
-  function loadRides() {
-    try { var a = JSON.parse(localStorage.getItem(RIDES_KEY) || '[]'); state.rides = Array.isArray(a) ? a : []; } catch (e) { state.rides = []; }
-  }
-  function saveRides() { try { localStorage.setItem(RIDES_KEY, JSON.stringify(state.rides)); } catch (e) { /* ignora */ } }
-
-  function load() {
-    try {
-      var raw = localStorage.getItem(STORE_KEY);
-      if (!raw) return;
-      var s = JSON.parse(raw);
-      if (s.rider) {
-        // salvataggi precedenti senza "effort": avevano potenza e cadenza scritte a mano
-        if (!s.rider.effort && s.rider.riderPower) s.rider.effort = 'manuale';
-        Object.assign(state.rider, s.rider);
-      }
-      if (s.route) { Object.assign(state.route, s.route); state.route.mapping = Object.assign({}, DEFAULT_MAP, s.route.mapping || {}); }
-    } catch (e) { /* memoria del browser non disponibile */ }
-  }
-  function save() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify({ rider: state.rider, route: state.route })); } catch (e) { /* ignora */ }
-  }
-  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
-  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  function n1(x) { return (Math.round(x * 10) / 10).toLocaleString('it-IT'); }
-
-  /* ---------------- schema ---------------- */
-  function riderPower() {
-    var r = state.rider, e = EFFORT[r.effort];
-    return e ? Math.max(40, Math.round((e.wkg * r.riderWeight) / 5) * 5) : r.riderPower;
-  }
-  function riderCadence() { return EFFORT[state.rider.effort] ? EST_CADENCE : state.rider.cadence; }
-  function modesFor(style) {
-    var r = state.rider;
-    return P.calcModes({ riderWeight: r.riderWeight, bikeWeight: r.bikeWeight, cadence: riderCadence(), riderPower: riderPower(), wkg: P.PRESETS[style].wkg });
-  }
-
-  function renderSchema() {
-    var r = state.rider;
-    var res = modesFor(r.style);
-    state.modes = res.error ? null : res;
-    var box = $('modes');
-    box.innerHTML = '';
-    if (res.error) {
-      box.appendChild(el('div', 'callout', esc(res.error)));
-      $('sheetFoot').innerHTML = ''; $('sheetMeta').textContent = ''; state.schemaText = '';
-      return;
-    }
-    var est = EFFORT[r.effort];
-    var pw = riderPower(), cad = riderCadence();
-    var who = est ? 'spinta ~' + pw + ' W (stima ' + est.label + ')' : pw + ' W · ' + cad + ' rpm';
-    $('sheetMeta').textContent = 'Sistema ' + n1(res.totalWeight) + ' kg · ' + who + ' · ' + P.PRESETS[r.style].label;
-    var lines = ['Avinox M2S – schema modalità (' + n1(res.totalWeight) + ' kg, ' + who + ', ' + P.PRESETS[r.style].label + ')'];
-    P.MODE_KEYS.forEach(function (k) {
-      var m = res.modes[k];
-      var range = m.levelMin !== m.levelMax;
-      var row = el('div', 'mrow mode-' + k);
-      row.appendChild(el('div', 'mname', '<b>' + m.label + '</b><span>' + (range ? 'range' : 'fisso') + '</span>'));
-      row.appendChild(el('div', 'cell c1', '<span class="k">' + (range ? 'Livelli' : 'Livello') + '</span><span class="v">' +
-        (range ? m.levelMin + '–' + m.levelMax : m.levelMin) + '</span><span class="s">' + (range ? m.pctMin + '–' + m.pctMax : m.pctMin) + '%</span>'));
-      row.appendChild(el('div', 'cell', '<span class="k">Potenza max</span><span class="v">' + m.maxPower + '<small>W</small></span><span class="s">' + m.wkg.toFixed(2).replace('.', ',') + ' W/kg</span>'));
-      row.appendChild(el('div', 'cell', '<span class="k">Coppia max</span><span class="v">' + m.maxTorque + '<small>Nm</small></span><span class="s">&nbsp;</span>'));
-      row.appendChild(el('div', 'dyn', '<span>Overrun <b>' + m.overrun + '</b></span><span>Avvio <b>' + m.start + '</b></span><span>Continuità <b>' + m.continued + '</b></span>' +
-        (m.accel != null ? '<span>Accelerazione <b>' + m.accel + '</b></span>' : '')));
-      m.warnings.forEach(function (w) { row.appendChild(el('div', 'mwarn', esc(w))); });
-      box.appendChild(row);
-      lines.push((m.label + '      ').slice(0, 6) + (range ? 'livelli ' + m.levelMin + '–' + m.levelMax : 'livello ' + m.levelMin) +
-        ' · ' + m.maxPower + ' W · ' + m.maxTorque + ' Nm · overrun ' + m.overrun + ' · avvio ' + m.start + ' · continuità ' + m.continued +
-        (m.accel != null ? ' · accelerazione ' + m.accel : ''));
-    });
-    var rv = res.reserve;
-    var rrow = el('div', 'mrow mode-reserve');
-    rrow.appendChild(el('div', 'mname', '<b>RISERVA</b><span>su misura</span>'));
-    rrow.appendChild(el('div', 'cell c1', '<span class="k">Livello</span><span class="v">' + rv.levelMin + '</span><span class="s">' + rv.pctMin + '%</span>'));
-    rrow.appendChild(el('div', 'cell', '<span class="k">Potenza max</span><span class="v">' + rv.maxPower + '<small>W</small></span><span class="s">' + rv.wkg.toFixed(2).replace('.', ',') + ' W/kg</span>'));
-    rrow.appendChild(el('div', 'cell', '<span class="k">Coppia max</span><span class="v">' + rv.maxTorque + '<small>Nm</small></span><span class="s">&nbsp;</span>'));
-    rrow.appendChild(el('div', 'dyn', '<span>Overrun <b>1</b></span><span>Avvio <b>1</b></span><span>Continuità <b>1</b></span><span>da creare nell\'app come modalità in più</span>'));
-    box.appendChild(rrow);
-    lines.push('RISERVA (personalizzata) livello ' + rv.levelMin + ' · ' + rv.maxPower + ' W · ' + rv.maxTorque + ' Nm · overrun 1 · avvio 1 · continuità 1');
-    var full = r.battery === 'RS800';
-    var foot = '<p class="boost">' + (full ? 'Boost <b>1500 W · 150 Nm</b> pieni con la RS800, durata standard 30 s (regolabile 1–60 s).'
-      : 'Boost <b>1300 W · 150 Nm</b>: con la RS600 la potenza di picco resta a 1300 W.') + '</p>' +
-      '<p>RISERVA: aggiungila nell\'app come modalità personalizzata. Ti serve quando a un waypoint la batteria è sotto la minima indicata: aiuta poco e con dolcezza, per allungare l\'ultima parte del giro.</p>' +
-      '<p>AUTO e TRAIL: imposta il livello minimo e il massimo. La % sotto il livello è quanto il motore aggiunge rispetto alla tua spinta (dato della community).</p>' +
-      '<p>Nomi nell\'app in inglese: Overrun = Max Overrun, Avvio = Assist Start, Continuità = Continued Assist, Accelerazione = Max Acceleration (solo AUTO).</p>';
-    res.warnings.filter(function (w) { return !(est && w.indexOf('120 W') >= 0); })
-      .forEach(function (w) { foot += '<p class="callout">' + esc(w) + '</p>'; });
-    $('sheetFoot').innerHTML = foot;
-    lines.push(full ? 'Boost 1500 W / 150 Nm (RS800), 30 s' : 'Boost 1300 W / 150 Nm (RS600), 30 s');
-    state.schemaText = lines.join('\n');
-    $('styleHint').textContent = { risparmio: 'Autonomia prima di tutto, per giri lunghi.', bilanciato: 'Profilo di riferimento del calcolatore.', enduro: 'Più spinta sulle salite tecniche, consuma di più.' }[r.style];
-  }
-
-  function onRiderChange() { save(); renderSchema(); replan(); }
-
-  function renderEffort() {
-    var r = state.rider, est = EFFORT[r.effort];
-    $('manualIn').hidden = !!est;
-    $('effortEst').textContent = est ? 'Stima: ~' + riderPower() + ' W mentre pedali, cadenza ' + EST_CADENCE + ' rpm' : '';
-    $('effortEst').hidden = !est;
-  }
-
-  function bindRider() {
-    var effortBtns = document.querySelectorAll('#effortSeg button');
-    Array.prototype.forEach.call(effortBtns, function (b) {
-      b.setAttribute('aria-pressed', b.dataset.effort === state.rider.effort ? 'true' : 'false');
-      b.addEventListener('click', function () {
-        state.rider.effort = b.dataset.effort;
-        Array.prototype.forEach.call(effortBtns, function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
-        renderEffort(); onRiderChange();
-      });
-    });
-    ['riderWeight', 'bikeWeight', 'cadence', 'riderPower'].forEach(function (id) {
-      $(id).value = state.rider[id];
-      $(id).addEventListener('input', function () {
-        var v = parseFloat($(id).value);
-        if (isFinite(v)) { state.rider[id] = v; renderEffort(); onRiderChange(); }
-      });
-    });
-    $('battery').value = state.rider.battery;
-    $('battery').addEventListener('change', function () { state.rider.battery = $('battery').value; onRiderChange(); });
-    var segBtns = document.querySelectorAll('#styleSeg button');
-    Array.prototype.forEach.call(segBtns, function (b) {
-      b.setAttribute('aria-pressed', b.dataset.style === state.rider.style ? 'true' : 'false');
-      b.addEventListener('click', function () {
-        state.rider.style = b.dataset.style;
-        Array.prototype.forEach.call(segBtns, function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
-        onRiderChange();
-      });
-    });
-    $('riderForm').addEventListener('submit', function (e) { e.preventDefault(); });
-    renderEffort();
-  }
-
-  /* ---------------- percorso ---------------- */
-  function renderStrategy() {
-    var auto = state.route.strategy === 'auto';
-    Array.prototype.forEach.call(document.querySelectorAll('#stratSeg button'), function (b) {
-      b.setAttribute('aria-pressed', b.dataset.strategy === state.route.strategy ? 'true' : 'false');
-    });
-    document.querySelector('.grp-map').hidden = auto;
-    $('sensField').hidden = auto;
-    $('adaptTxt').textContent = auto ? 'Se non basta, abbassa i livelli di AUTO per arrivare con questa riserva'
-      : 'Se non basta, abbassa le modalità per arrivare con questa riserva';
-    $('stratHint').textContent = auto
-      ? 'Imposti AUTO una volta per questo giro e non cambi più modalità: la scheda sotto ti dice come regolarla.'
-      : 'Ogni fascia di pendenza ha la sua modalità e l\'orologio ti avvisa quando cambiarla.';
-  }
-
-  function bindRoute() {
-    var R = state.route;
-    Array.prototype.forEach.call(document.querySelectorAll('#stratSeg button'), function (b) {
-      b.addEventListener('click', function () { R.strategy = b.dataset.strategy; renderStrategy(); save(); replan(); });
-    });
-    renderStrategy();
-    Array.prototype.forEach.call(document.querySelectorAll('#mapGrid select'), function (s) {
-      s.innerHTML = P.MODE_KEYS.map(function (k) { return '<option value="' + k + '">' + LABEL[k] + '</option>'; }).join('');
-      var band = s.dataset.band;
-      s.value = R.mapping[band];
-      s.className = 'mode-' + s.value;
-      s.addEventListener('change', function () { R.mapping[band] = s.value; s.className = 'mode-' + s.value; save(); replan(); });
-    });
-    $('temperature').innerHTML = Object.keys(P.TEMPERATURES).map(function (k) { return '<option value="' + k + '">' + P.TEMPERATURES[k].label + '</option>'; }).join('');
-    $('temperature').value = R.temperature;
-    $('temperature').addEventListener('change', function () { R.temperature = $('temperature').value; save(); replan(); });
-    $('osmBtn').addEventListener('click', readOsm);
-    $('calibForm').addEventListener('submit', function (ev) { ev.preventDefault(); saveRide(); });
-    $('calUse').checked = !!R.useCal;
-    $('calUse').addEventListener('change', function () { R.useCal = $('calUse').checked; save(); replan(); renderCalib(); });
-    $('surface').innerHTML = Object.keys(P.SURFACES).map(function (k) { return '<option value="' + k + '">' + P.SURFACES[k].label + '</option>'; }).join('');
-    $('surface').value = R.surface;
-    $('surface').addEventListener('change', function () { R.surface = $('surface').value; save(); replan(); });
-    var slider = function (id, out, key) {
-      $(id).value = R[key]; $(out).textContent = R[key] + '%';
-      $(id).addEventListener('input', function () { R[key] = +$(id).value; $(out).textContent = R[key] + '%'; save(); replan(); });
-    };
-    slider('startPct', 'startOut', 'startPct');
-    slider('reservePct', 'reserveOut', 'reservePct');
-    $('adaptChk').checked = !!R.adapt;
-    $('adaptChk').addEventListener('change', function () { R.adapt = $('adaptChk').checked; save(); replan(); });
-    var sensHint = function () { var v = SENS[R.sens] || SENS.media; $('sensHint').textContent = 'Salite da ' + v.minUp + ' m, cali da ' + v.minLen + ' m.'; };
-    $('sens').value = R.sens; sensHint();
-    $('sens').addEventListener('change', function () { R.sens = $('sens').value; sensHint(); save(); replan(); });
-    $('lead').value = String(R.lead);
-    $('lead').addEventListener('change', function () { R.lead = +$('lead').value; save(); replan(); });
-    $('maxWp').value = R.maxWp;
-    $('maxWp').addEventListener('input', function () {
-      var v = parseInt($('maxWp').value, 10);
-      if (v >= 2) { R.maxWp = v; save(); replan(); }
-    });
-    $('boostChk').checked = !!R.boost;
-    $('boostChk').addEventListener('change', function () { R.boost = $('boostChk').checked; save(); replan(); });
-    $('gpxFile').addEventListener('change', function () {
-      var f = $('gpxFile').files[0];
-      if (!f) return;
-      var reader = new FileReader();
-      reader.onload = function () {
-        try {
-          var parsed = P.parseRoute(String(reader.result), f.name);
-          var base = P.prepareRoute(parsed.points);
-          state.file = { name: parsed.name, sample: false, filename: f.name };
-          state.base = base;
-          state.osm = null;
-          showError('');
-          replan();
-        } catch (err) { showError(err.message); }
-      };
-      reader.onerror = function () { showError('Non riesco a leggere il file.'); };
-      reader.readAsText(f);
-      $('gpxFile').value = '';
-    });
-  }
-  function showError(msg) { var e = $('routeError'); e.textContent = msg; e.hidden = !msg; }
-
-  function energyParams(modesRes) {
-    var r = state.rider, R = state.route;
-    if (!modesRes) return null;
-    return { modes: modesRes.modes, totalWeight: modesRes.totalWeight, riderW: riderPower(), rpm: riderCadence(), wkg: P.PRESETS[r.style].wkg,
-      batteryWh: BATTERY_WH[r.battery] || 800, startPct: R.startPct, reservePct: R.reservePct, surface: R.surface,
-      temperature: R.temperature, personalFactor: R.useCal ? P.personalFactorFrom(state.rides).factor : 1,
-      surfaceSamples: state.osm && state.osm.base === state.base ? state.osm.samples : null };
-  }
-  function planOpts() {
-    var R = state.route, sens = SENS[R.sens] || SENS.media;
-    return { mapping: R.mapping, minLen: sens.minLen, minUp: sens.minUp, lead: R.lead, boost: R.boost, adapt: R.adapt, maxWaypoints: R.maxWp };
-  }
-
-  function replan() {
-    if (!state.base) return;
-    var e = energyParams(state.modes), R = state.route;
-    state.result = (R.strategy === 'auto' && e)
-      ? P.autoPlan(state.base, { adapt: R.adapt, lead: R.lead, boost: R.boost, maxWaypoints: R.maxWp }, e)
-      : P.plan(state.base, planOpts(), e);
-    renderRoute();
-  }
-
-  /* ---------------- fondo da OpenStreetMap ---------------- */
-  function renderOsm() {
-    var btn = $('osmBtn'), st = $('osmStatus'), o = state.osm;
-    var sample = state.file && state.file.sample;
-    btn.disabled = !!sample || !window.AvinoxOsm || (o && o.loading);
-    if (sample) { st.textContent = 'Carica il tuo GPX per leggere il fondo.'; return; }
-    if (!o) { st.textContent = 'Invia a OpenStreetMap solo punti campionati della traccia, uno ogni 500 m.'; return; }
-    if (o.loading) { st.textContent = 'Lettura in corso…'; return; }
-    if (o.error) { st.textContent = o.error; return; }
-    var parts = Object.keys(o.mix).filter(function (k) { return o.mix[k] >= 5; })
-      .sort(function (a, b) { return o.mix[b] - o.mix[a]; })
-      .map(function (k) { return Math.round(o.mix[k]) + '% ' + P.VOICE_LABELS[k]; });
-    st.textContent = 'Fondo letto: ' + (parts.join(', ') || 'nessun dato utile') + ' (copertura ' + Math.round(o.coverage * 100) +
-      '%; dove manca vale il fondo prevalente).';
-  }
-  function readOsm() {
-    if (!state.base || !window.AvinoxOsm) return;
-    var base = state.base;
-    state.osm = { loading: true, base: base };
-    renderOsm();
-    var pts = base.points.map(function (p) { return { lat: p.lat, lon: p.lon, distanceKm: p.d / 1000 }; });
-    window.AvinoxOsm.fetchSurfaceMix(pts).then(function (res) {
-      if (state.base !== base) return;
-      if (!res.ok) {
-        var why = res.reason === 'network' ? 'OpenStreetMap non è raggiungibile da qui. Funziona dalla pagina su GitHub Pages o dall\'app installata.'
-          : res.reason === 'empty' ? 'OpenStreetMap non ha strade o sentieri lungo questa traccia.'
-          : 'OpenStreetMap non ha risposto (' + res.reason + '): riprova tra poco.';
-        state.osm = { base: base, error: why };
-      } else {
-        state.osm = { base: base, samples: res.samples, mix: res.mix, coverage: res.coverage };
-      }
-      renderOsm(); replan();
-    });
-  }
-
-  /* ---------------- taratura ---------------- */
-  function renderCalib() {
-    var list = $('rides'), R = state.route;
-    list.innerHTML = '';
-    var pf = P.personalFactorFrom(state.rides), range = P.FACTOR_RANGE;
-    state.rides.forEach(function (ride, i) {
-      var f = P.rideFactor(ride), ok = isFinite(f) && f >= range[0] && f <= range[1];
-      var li = el('li', '', '<span>' + esc(ride.date) + ' · ' + esc(ride.name) + '</span><span>' + n1(ride.km) + ' km · +' + Math.round(ride.gain) + ' m</span>' +
-        '<span>' + ride.startPct + '% → ' + ride.endPct + '%</span><span class="f' + (ok ? '' : ' out') + '" title="' + (ok ? 'Consumo vero / stima' : 'Fuori scala: non usato') + '">×' +
-        (isFinite(f) ? f.toFixed(2).replace('.', ',') : '—') + '</span>');
-      var del = el('button', 'btn', 'Elimina'); del.type = 'button';
-      del.addEventListener('click', function () { state.rides.splice(i, 1); saveRides(); renderCalib(); replan(); });
-      li.appendChild(del);
-      list.appendChild(li);
-    });
-    $('calUseTxt').textContent = pf.used ? 'Usa la taratura nelle stime: consumo ×' + pf.factor.toFixed(2).replace('.', ',') + ' (da ' + pf.used + (pf.used === 1 ? ' giro' : ' giri') + ')'
-      : 'Usa la taratura nelle stime (ancora nessun giro salvato)';
-    var sample = state.file && state.file.sample;
-    $('calSave').disabled = !!sample;
-    if (sample && !$('calMsg').dataset.keep) $('calMsg').textContent = 'Carica il GPX del giro che hai fatto per salvarlo.';
-  }
-  function saveRide() {
-    var r = state.result, msg = $('calMsg');
-    msg.dataset.keep = '1';
-    if (!r || !r.energy || state.file.sample) { msg.textContent = 'Carica il GPX del giro che hai fatto.'; return; }
-    var a = parseFloat($('calStart').value), b = parseFloat($('calEnd').value);
-    if (!(a > 0 && a <= 100 && b >= 0 && b < a)) { msg.textContent = 'Scrivi la batteria alla partenza e all\'arrivo, con l\'arrivo più basso della partenza.'; return; }
-    var ride = {
-      date: new Date().toLocaleDateString('it-IT'), name: state.file.name, km: r.total / 1000, gain: r.gain,
-      startPct: a, endPct: b, batteryWh: BATTERY_WH[state.rider.battery] || 800, temperature: state.route.temperature,
-      predictedWh: Math.round(r.energy.rawTotalWh), strategy: state.route.strategy
-    };
-    var f = P.rideFactor(ride), range = P.FACTOR_RANGE;
-    state.rides.push(ride); saveRides();
-    msg.textContent = (isFinite(f) && f >= range[0] && f <= range[1])
-      ? 'Salvato: hai consumato ' + (f >= 1 ? 'il ' + Math.round((f - 1) * 100) + '% in più' : 'il ' + Math.round((1 - f) * 100) + '% in meno') + ' della stima.'
-      : 'Salvato, ma il risultato è fuori scala (×' + (isFinite(f) ? f.toFixed(2) : '?') + '): non lo uso. Controlla i valori o che il giro sia questo.';
-    $('calEnd').value = '';
-    renderCalib(); replan();
-  }
-
-  function renderRoute() {
-    var r = state.result, f = state.file, en = r.energy;
-    $('routeName').innerHTML = esc(f.name) + (f.sample ? '<span class="tag">esempio sintetico</span>' : '');
-    $('routeMeta').textContent = f.sample ? 'Anello inventato per mostrare lo strumento: carica il GPX del tuo giro.' : (f.filename || '');
-
-    // fasce abbassate dal piano
-    Array.prototype.forEach.call(document.querySelectorAll('.adapted'), function (s) {
-      var c = r.changes.filter(function (x) { return x.band === s.dataset.for; })[0];
-      s.textContent = c ? 'nel piano: ' + LABEL[c.to] : '';
-    });
-
-    var changes = r.waypoints.filter(function (w) { return w.kind === 'up' || w.kind === 'down'; }).length;
-    var sum = $('summary');
-    sum.innerHTML = '';
-    var stat = function (k, v, cls, s) { sum.appendChild(el('div', 'stat', '<span class="k">' + k + '</span><span class="v' + (cls ? ' ' + cls : '') + '">' + v + '</span>' + (s ? '<span class="s">' + s + '</span>' : ''))); };
-    stat('Distanza', P.fmtKm(r.total) + ' km');
-    stat('Dislivello', '+' + Math.round(r.gain) + ' m');
-    if (r.auto) stat('AUTO', r.auto.setting.levelMin + '–' + r.auto.setting.levelMax, '', r.auto.setting.maxPower + ' W · ' + r.auto.setting.maxTorque + ' Nm');
-    else stat('Cambi', String(changes));
-    stat('Waypoint', String(r.waypoints.length), r.cap && r.cap.limit && r.waypoints.length >= r.cap.limit ? 'bad' : '', r.cap && r.cap.limit ? 'max ' + r.cap.limit + ' per file' : '');
-    if (en) {
-      stat('Consumo', Math.round(en.totalWh) + ' Wh', '', Math.round(en.low) + '–' + Math.round(en.high) + ' Wh' +
-        (en.personalFactor !== 1 ? ' · tarato ×' + en.personalFactor.toFixed(2).replace('.', ',') : ''));
-      stat('Parti con', en.needStartPct > 100 ? 'oltre 100%' : 'almeno ' + en.needStartPct + '%', en.needStartPct > 100 ? 'bad' : '',
-        en.needStartPrudentPct > 100 ? 'con margine: non basta' : 'con margine ' + en.needStartPrudentPct + '%');
-      if (en.arrivalPct < 0) {
-        var emptyAt = null;
-        for (var pi = 0; pi < r.profile.length; pi++) { if (r.profile[pi].pct <= 0) { emptyAt = r.profile[pi].d; break; } }
-        stat('Arrivo', 'scarica', 'bad', 'finisce verso il km ' + (emptyAt != null ? P.fmtKm(emptyAt) : '?') + ' · riserva ' + en.reservePct + '%');
-      } else {
-        stat('Arrivo', '~' + Math.round(en.arrivalPct) + '%', en.fits ? 'ok' : 'bad',
-          'tra ' + Math.max(0, Math.round(en.arrivalWorst)) + '% e ' + Math.max(0, Math.round(en.arrivalBest)) + '% · riserva ' + en.reservePct + '%');
-      }
-    }
-    var share = el('div', 'share');
-    var bar = el('div', 'share-bar'), legend = el('div', 'share-legend');
-    P.MODE_KEYS.forEach(function (k) {
-      var pct = (r.share[k] / r.total) * 100;
-      if (pct <= 0) return;
-      var i = el('i', 'mode-' + k); i.style.width = pct + '%'; i.title = LABEL[k] + ' ' + Math.round(pct) + '%';
-      bar.appendChild(i);
-      legend.appendChild(el('span', 'mode-' + k, LABEL[k] + ' ' + P.fmtKm(r.share[k]) + ' km'));
-    });
-    share.appendChild(el('span', 'stat', '<span class="k">Km per modalità</span>'));
-    share.appendChild(bar); share.appendChild(legend);
-    sum.appendChild(share);
-
-    renderPlanNote();
-    renderAutoCard();
-    renderOsm();
-    renderCalib();
-    if (!$('calStart').dataset.touched) $('calStart').value = state.route.startPct;
-    drawChart(); drawShape(); renderCues();
-  }
-
-  function autoText(st) {
-    return 'AUTO  livelli ' + st.levelMin + '–' + st.levelMax + ' · ' + st.maxPower + ' W · ' + st.maxTorque + ' Nm · overrun ' + st.overrun +
-      ' · avvio ' + st.start + ' · continuità ' + st.continued + ' · accelerazione ' + st.accel;
-  }
-
-  function renderAutoCard() {
-    var r = state.result, box = $('autoCard');
-    box.hidden = !r.auto;
-    if (!r.auto) { box.innerHTML = ''; return; }
-    var a = r.auto, st = a.setting, en = r.energy, R = state.route;
-    var pct = function (x) { return Math.max(0, Math.round(x)) + '%'; };
-    var why = [];
-    why.push('<b>Livello massimo e potenza</b> dimensionati sulle salite più dure: il 90% dei tratti in salita resta sotto il ' + Math.round(a.p90) +
-      '%, la punta arriva al ' + Math.round(a.gMax) + '%.');
-    why.push('<b>Livello minimo ' + st.levelMin + '</b>: è quello che lavora in piano e sugli ondulati' + (st.levelMin === a.tuned.levelMin ? ', lo stesso dell\'AUTO nella scheda.' : '.'));
-    if (a.levelCapped && !a.adapted) why.push('Nell\'app AUTO arriva al livello 11: sui tratti più ripidi, se serve più spinta, usa il Boost.');
-    var tf = a.surface.torque;
-    if (Math.abs(tf - 1) >= 0.02) why.push('<b>Coppia</b> ' + (tf < 1 ? 'ridotta' : 'alzata') + ' del ' + Math.round(Math.abs(1 - tf) * 100) + '% per l\'aderenza del fondo (' + a.surface.label.charAt(0).toLowerCase() + a.surface.label.slice(1) + ').');
-    if (a.soft) why.push('<b>Avvio 2 e accelerazione 2</b>: spinta più dolce in partenza, per non perdere aderenza su fondo tecnico o rampe molto ripide.');
-    if (a.adapted && !r.exhausted) {
-      why.push('Per arrivare con almeno il ' + R.reservePct + '% ho abbassato AUTO da livelli ' + a.proposed.levelMin + '–' + a.proposed.levelMax + ', ' +
-        a.proposed.maxPower + ' W a livelli ' + st.levelMin + '–' + st.levelMax + ', ' + st.maxPower + ' W.');
-    }
-    why.push('Con l\'AUTO della scheda (livelli ' + a.tuned.levelMin + '–' + a.tuned.levelMax + ', ' + a.tuned.maxPower + ' W) consumeresti ~' +
-      Math.round(a.tunedEnergy.totalWh) + ' Wh e ' + (a.tunedEnergy.arrivalPct < 0 ? 'la batteria finirebbe prima dell\'arrivo.' : 'arriveresti al ~' + pct(a.tunedEnergy.arrivalPct) + '.'));
-    var range = st.levelMin !== st.levelMax;
-    box.innerHTML = '<div class="auto-head"><div><h3>AUTO per questo giro</h3><div class="meta">Consumo ~' + Math.round(en.totalWh) +
-      ' Wh · arrivo ~' + pct(en.arrivalPct) + ' · riserva ' + R.reservePct + '%</div></div><button type="button" class="btn" id="copyAuto">Copia AUTO</button></div>' +
-      '<div class="mrow mode-auto"><div class="mname"><b>AUTO</b><span>' + (range ? 'range' : 'fisso') + '</span></div>' +
-      '<div class="cell c1"><span class="k">' + (range ? 'Livelli' : 'Livello') + '</span><span class="v">' + (range ? st.levelMin + '–' + st.levelMax : st.levelMin) +
-      '</span><span class="s">' + (range ? st.pctMin + '–' + st.pctMax : st.pctMin) + '%</span></div>' +
-      '<div class="cell"><span class="k">Potenza max</span><span class="v">' + st.maxPower + '<small>W</small></span><span class="s">' + (st.maxPower / state.modes.totalWeight).toFixed(2).replace('.', ',') + ' W/kg</span></div>' +
-      '<div class="cell"><span class="k">Coppia max</span><span class="v">' + st.maxTorque + '<small>Nm</small></span><span class="s">&nbsp;</span></div>' +
-      '<div class="dyn"><span>Overrun <b>' + st.overrun + '</b></span><span>Avvio <b>' + st.start + '</b></span><span>Continuità <b>' + st.continued +
-      '</b></span><span>Accelerazione <b>' + st.accel + '</b></span></div></div>' +
-      '<ul class="auto-why">' + why.map(function (w) { return '<li>' + w + '</li>'; }).join('') + '</ul>' +
-      '<div class="manual" id="autoManual" hidden><textarea id="autoManualText" readonly aria-label="Impostazioni AUTO da copiare"></textarea></div>';
-    $('copyAuto').addEventListener('click', function () {
-      copy(state.file.name + ' – ' + autoText(st), $('copyAuto'), $('autoManual'), $('autoManualText'));
-    });
-  }
-
-  function capNote(r) {
-    var c = r.cap, parts = [];
-    if (!c || !c.limit) return '';
-    if (c.escalated) parts.push('per stare nei ' + c.limit + ' waypoint ho unito i tratti più corti: ora un tratto che alza l\'assistenza deve essere lungo almeno ' +
-      c.minUp + ' m e gli altri ' + c.minLen + ' m');
-    if (c.droppedBoost) parts.push('ho tolto ' + c.droppedBoost + (c.droppedBoost === 1 ? ' avviso Boost' : ' avvisi Boost') + ' sulle rampe meno ripide');
-    return parts.length ? parts.join('; ').replace(/^./, function (x) { return x.toUpperCase(); }) + '.' : '';
-  }
-
-  function renderPlanNote() {
-    var r = state.result, en = r.energy, box = $('planNote'), R = state.route;
-    box.innerHTML = '';
-    var cn = capNote(r);
-    if (cn) box.appendChild(el('p', 'callout', esc(cn)));
-    if (!en) { box.appendChild(el('p', 'callout', 'Correggi i dati della scheda modalità per vedere la stima della batteria.')); return; }
-    var arrive = function (pct) { return pct < 0 ? 'la batteria finisce prima dell\'arrivo' : 'arrivi intorno al ' + Math.round(pct) + '%'; };
-    var under = function (pct) { return pct < 0 ? '' : ', sotto la riserva del ' + R.reservePct + '%'; };
-    if (r.auto) {
-      if (r.exhausted) box.appendChild(el('p', 'callout', esc('Anche con AUTO al livello più basso ' + arrive(en.arrivalPct) + under(en.arrivalPct) +
-        '. Parti più carico, accorcia il giro o abbassa la riserva.')));
-      else if (!en.fits) box.appendChild(el('p', 'callout', esc('Con questa AUTO ' + arrive(en.arrivalPct) + under(en.arrivalPct) +
-        '. Attiva "abbassa i livelli di AUTO" per adattarla.')));
-      return;
-    }
-    var list = r.changes.map(function (c) { return BAND_LABEL[c.band] + ' ' + LABEL[c.from] + ' → ' + LABEL[c.to]; }).join(', ');
-    if (r.exhausted) {
-      var msg = 'Anche facendo tutto in ECO ' + arrive(en.arrivalPct) + under(en.arrivalPct) + '.';
-      if (state.rider.style !== 'risparmio') {
-        var alt = modesFor('risparmio');
-        if (!alt.error) {
-          var altPct = P.plan(state.base, planOpts(), energyParams(alt)).energy.arrivalPct;
-          msg += altPct < 0 ? ' Anche con lo stile Risparmio nella scheda la batteria non basta: parti più carico o accorcia il giro.'
-            : ' Con lo stile Risparmio nella scheda il piano arriva al ~' + Math.round(altPct) + '%.';
-        }
-      } else {
-        msg += ' Parti più carico, accorcia il giro o abbassa la riserva.';
-      }
-      box.appendChild(el('p', 'callout', esc(msg)));
-    } else if (r.changes.length) {
-      box.appendChild(el('p', 'callout', esc('Per arrivare con almeno il ' + R.reservePct + '% il piano usa meno assistenza: ' + list + '. Le modalità che hai scelto restano salvate.')));
-    } else if (!en.fits) {
-      box.appendChild(el('p', 'callout', esc('Con queste modalità ' + arrive(en.arrivalPct) + under(en.arrivalPct) + '. Attiva "abbassa le modalità" per adattare il piano.')));
-    }
-  }
-
-  var NS = 'http://www.w3.org/2000/svg';
-  function svgEl(tag, attrs, parent) {
-    var e = document.createElementNS(NS, tag);
-    for (var k in attrs) e.setAttribute(k, attrs[k]);
-    if (parent) parent.appendChild(e);
-    return e;
-  }
-  function niceStep(span, target) {
-    var raw = span / target, mag = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / mag;
-    return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * mag;
-  }
-  function colors() { var css = getComputedStyle(document.documentElement); return function (k) { return css.getPropertyValue('--' + k).trim(); }; }
-  function txt(parent, x, y, s, attrs) {
-    var a = Object.assign({ x: x, y: y, 'font-size': 11, 'font-family': 'JetBrains Mono, monospace' }, attrs || {});
-    var t = svgEl('text', a, parent); t.textContent = s; return t;
-  }
-
-  /* Profilo altimetrico colorato per modalità e, sotto, la carica prevista. */
-  function drawChart() {
-    var r = state.result, box = $('chart'), en = r.energy;
-    var col = colors();
-    var W = Math.max(300, box.clientWidth - 12), narrow = W < 560;
-    var ml = 46, mr = 14, mt = 58, eleH = narrow ? 150 : 190, gap = 32, batH = en ? (narrow ? 70 : 84) : 0, mb = 24;
-    var H = mt + eleH + (en ? gap + batH : 0) + mb, pw = W - ml - mr;
-    var eStep = niceStep(r.maxEle - r.minEle || 50, 4);
-    var e0 = Math.floor(r.minEle / eStep) * eStep, e1 = Math.ceil(r.maxEle / eStep) * eStep;
-    if (e1 === e0) e1 = e0 + eStep;
-    var x = function (d) { return ml + (d / r.total) * pw; };
-    var y = function (e) { return mt + eleH - ((e - e0) / (e1 - e0)) * eleH; };
-    var bTop = mt + eleH + gap;
-    var yb = function (p) { return bTop + batH - (Math.max(0, Math.min(100, p)) / 100) * batH; };
-    box.innerHTML = '';
-    var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img' }, box);
-    svgEl('title', {}, svg).textContent = 'Profilo altimetrico con le modalità per tratto' + (en ? ' e batteria prevista' : '');
-    var prof = r.profile;
-    function at(d, key) {
-      var lo = 0, hi = prof.length - 1;
-      while (hi - lo > 1) { var mid = (lo + hi) >> 1; if (prof[mid].d <= d) lo = mid; else hi = mid; }
-      var a = prof[lo], b = prof[hi]; if (b.d === a.d) return a[key];
-      return a[key] + (b[key] - a[key]) * Math.min(1, Math.max(0, (d - a.d) / (b.d - a.d)));
-    }
-    var plotBottom = en ? bTop + batH : mt + eleH;
-    r.runs.forEach(function (run) {
-      svgEl('rect', { x: x(run.start), y: mt, width: Math.max(0.5, x(run.end) - x(run.start)), height: plotBottom - mt, fill: col(run.mode), 'fill-opacity': 0.07 }, svg);
-    });
-    for (var e = e0; e <= e1 + 0.01; e += eStep) {
-      svgEl('line', { x1: ml, x2: ml + pw, y1: y(e), y2: y(e), stroke: col('line'), 'stroke-width': 1, 'stroke-dasharray': e === e0 ? '' : '3 4' }, svg);
-      txt(svg, ml - 6, y(e) + 4, Math.round(e) + ' m', { 'text-anchor': 'end', fill: col('muted') });
-    }
-    var kStep = niceStep(r.total / 1000, narrow ? 5 : 9);
-    for (var km = 0; km <= r.total / 1000 + 1e-9; km += kStep) {
-      txt(svg, x(km * 1000), H - 7, (Math.round(km * 10) / 10).toLocaleString('it-IT') + (km === 0 ? ' km' : ''), { 'text-anchor': km === 0 ? 'start' : 'middle', fill: col('muted') });
-    }
-    r.runs.forEach(function (run) {
-      var pts = [[run.start, at(run.start, 'ele')]];
-      prof.forEach(function (p) { if (p.d > run.start && p.d < run.end) pts.push([p.d, p.ele]); });
-      pts.push([run.end, at(run.end, 'ele')]);
-      var line = pts.map(function (p) { return x(p[0]).toFixed(1) + ',' + y(p[1]).toFixed(1); }).join('L');
-      svgEl('path', { d: 'M' + x(run.start).toFixed(1) + ',' + (mt + eleH) + 'L' + line + 'L' + x(run.end).toFixed(1) + ',' + (mt + eleH) + 'Z', fill: col(run.mode), 'fill-opacity': 0.42 }, svg);
-      svgEl('path', { d: 'M' + line, fill: 'none', stroke: col(run.mode), 'stroke-width': 2.2, 'stroke-linejoin': 'round' }, svg);
-    });
-    if (en) {
-      txt(svg, ml, bTop - 8, 'Batteria prevista', { fill: col('muted'), 'font-size': 10.5 });
-      [0, 50, 100].forEach(function (p) {
-        svgEl('line', { x1: ml, x2: ml + pw, y1: yb(p), y2: yb(p), stroke: col('line'), 'stroke-width': 1, 'stroke-dasharray': p === 0 ? '' : '3 4' }, svg);
-        txt(svg, ml - 6, yb(p) + 4, p + '%', { 'text-anchor': 'end', fill: col('muted') });
-      });
-      var res = en.reservePct;
-      svgEl('rect', { x: ml, y: yb(res), width: pw, height: Math.max(0, yb(0) - yb(res)), fill: col('bad'), 'fill-opacity': 0.08 }, svg);
-      svgEl('line', { x1: ml, x2: ml + pw, y1: yb(res), y2: yb(res), stroke: col('bad'), 'stroke-width': 1.2, 'stroke-dasharray': '5 4' }, svg);
-      txt(svg, ml + 4, yb(res) - 4, 'riserva ' + res + '%', { 'text-anchor': 'start', fill: col('bad'), 'font-size': 10.5 });
-      var bl = prof.map(function (p) { return x(p.d).toFixed(1) + ',' + yb(p.pct).toFixed(1); }).join('L');
-      svgEl('path', { d: 'M' + x(0) + ',' + yb(0) + 'L' + bl + 'L' + x(r.total).toFixed(1) + ',' + yb(0) + 'Z', fill: col('ink'), 'fill-opacity': 0.06 }, svg);
-      svgEl('path', { d: 'M' + bl, fill: 'none', stroke: col('ink'), 'stroke-width': 2, 'stroke-linejoin': 'round' }, svg);
-      var endP = prof[prof.length - 1].pct;
-      svgEl('circle', { cx: x(r.total), cy: yb(endP), r: 4, fill: col(en.fits ? 'ok' : 'bad') }, svg);
-      txt(svg, x(r.total) - 8, yb(endP) - 7, '~' + Math.round(endP) + '%', { 'text-anchor': 'end', fill: col(en.fits ? 'ok' : 'bad'), 'font-weight': 600 });
-    }
-    var lastX = [-1e9, -1e9];
-    r.waypoints.forEach(function (w, i) {
-      var wx = x(w.dist), row = wx - lastX[0] >= 24 ? 0 : (wx - lastX[1] >= 24 ? 1 : 0);
-      lastX[row] = wx;
-      var cy = row === 0 ? 14 : 38;
-      var g = svgEl('g', { 'data-n': i, class: 'wpm' }, svg);
-      svgEl('line', { x1: wx, x2: wx, y1: cy + 10, y2: y(at(w.dist, 'ele')), stroke: col(w.mode), 'stroke-width': 1.2, 'stroke-dasharray': '2 3' }, g);
-      svgEl('circle', { cx: wx, cy: cy, r: 10, fill: col(w.mode) }, g);
-      txt(g, wx, cy + 4, String(i + 1), { 'text-anchor': 'middle', 'font-weight': 600, fill: col('on-mode') });
-      svgEl('title', {}, g).textContent = 'km ' + P.fmtKm(w.dist) + ' · ' + w.name;
-    });
-  }
-
-  function drawShape() {
-    var r = state.result, box = $('shape');
-    var tr = r.track, lat0 = tr[0].lat, c = Math.cos(lat0 * Math.PI / 180);
-    var proj = function (p) { return [(p.lon - tr[0].lon) * c, -(p.lat - lat0)]; };
-    var xs = tr.map(function (p) { return proj(p)[0]; }), ys = tr.map(function (p) { return proj(p)[1]; });
-    var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs), minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
-    var S = 300, pad = 18, span = Math.max(maxX - minX, maxY - minY) || 1e-6, k = (S - 2 * pad) / span;
-    var ox = pad + ((S - 2 * pad) - (maxX - minX) * k) / 2, oy = pad + ((S - 2 * pad) - (maxY - minY) * k) / 2;
-    var P2 = function (p) { var q = proj(p); return [ox + (q[0] - minX) * k, oy + (q[1] - minY) * k]; };
-    var col = colors();
-    box.innerHTML = '';
-    var svg = svgEl('svg', { viewBox: '0 0 ' + S + ' ' + S, role: 'img' }, box);
-    svgEl('title', {}, svg).textContent = 'Forma della traccia colorata per modalità';
-    r.runs.forEach(function (run) {
-      var pts = [P2(P.positionAt(r.points, run.start))];
-      tr.forEach(function (p) { if (p.d > run.start && p.d < run.end) pts.push(P2(p)); });
-      pts.push(P2(P.positionAt(r.points, run.end)));
-      svgEl('polyline', { points: pts.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' '), fill: 'none', stroke: col(run.mode), 'stroke-width': 3.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, svg);
-    });
-    var s0 = P2(tr[0]);
-    svgEl('circle', { cx: s0[0], cy: s0[1], r: 7, fill: col('panel'), stroke: col('ink'), 'stroke-width': 2 }, svg);
-    r.waypoints.forEach(function (w, i) {
-      if (w.kind === 'start') return;
-      var q = P2(w);
-      var g = svgEl('g', { 'data-n': i, class: 'wpm' }, svg);
-      svgEl('circle', { cx: q[0], cy: q[1], r: 8, fill: col(w.mode), stroke: col('panel'), 'stroke-width': 1.5 }, g);
-      txt(g, q[0], q[1] + 3.5, String(i + 1), { 'text-anchor': 'middle', 'font-size': 9.5, 'font-weight': 600, fill: col('on-mode') });
-    });
-  }
-
-  function renderCues() {
-    var r = state.result, list = $('cueList'), en = r.energy;
-    list.innerHTML = '';
-    r.waypoints.forEach(function (w, i) {
-      var li = el('li', 'cue mode-' + w.mode);
-      var rest = w.name.replace(/^START · /, '').replace(/^(ECO|AUTO|TRAIL|TURBO|BOOST)\s*(· )?/, '').replace(/ · min \d+%$/, '');
-      var head = (w.kind === 'start' ? '<span class="tag" style="margin:0 6px 0 0">start</span>' : '') + '<b>' + LABEL[w.mode] + '</b><span class="rest">' + esc(rest) + '</span>';
-      var batt = w.battery != null ? '<i class="' + (en && w.battery < en.reservePct ? 'low' : '') + '">~' + Math.max(0, Math.round(w.battery)) + '%</i>' +
-        (w.minBattery != null ? '<i>min ' + Math.max(0, Math.round(w.minBattery)) + '%</i>' : '') : '';
-      var desc = w.desc.replace(/^km [\d,]+: /, '').replace(/ Batteria prevista ~-?\d+%\. Se sei sotto il \d+%, passa a una modalità più bassa o a RISERVA\./, '');
-      li.innerHTML = '<span class="n">' + (i + 1) + '</span><span class="km">km ' + P.fmtKm(w.dist) + batt + '</span><div class="t">' + head + '<p>' + esc(desc) + '</p></div>';
-      li.addEventListener('mouseenter', function () { hot(i, true); });
-      li.addEventListener('mouseleave', function () { hot(i, false); });
-      list.appendChild(li);
-    });
-  }
-  function hot(i, on) {
-    Array.prototype.forEach.call(document.querySelectorAll('.wpm[data-n="' + i + '"] circle'), function (c) { c.setAttribute('r', on ? 13 : (c.closest('#shape') ? 8 : 10)); });
-  }
-
-  /* ---------------- copia e download ---------------- */
-  function copy(text, btn, manualBox, manualText) {
-    var done = function () { var o = btn.textContent; btn.textContent = 'Copiato'; setTimeout(function () { btn.textContent = o; }, 1500); };
-    var fallback = function () { manualText.value = text; manualBox.hidden = false; manualText.focus(); manualText.select(); };
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
-      else fallback();
-    } catch (e) { fallback(); }
-  }
-  function baseName() {
-    var s = (state.file && state.file.name || 'percorso').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    return (s || 'percorso') + '-modalita-avinox';
-  }
-  function gpxText() { return P.buildGpx(state.file.name + ' · modalità Avinox', state.result); }
-
-  var downloads = null;
-  var inViewer = !!(window.claude && typeof window.claude.use === 'function');
-  $('calStart').addEventListener('input', function () { $('calStart').dataset.touched = '1'; });
-  // app installata: niente istruzioni di installazione; fuori da claude.ai, lavoro offline col service worker
-  var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
-  if (standalone) $('install').hidden = true;
-  if (!inViewer && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () { /* resta online */ }); });
-  }
-  function setStatus(t) { $('dlStatus').textContent = t; }
-  if (inViewer) {
-    window.claude.use('downloads').then(function (ns) {
-      downloads = ns;
-      $('dlBtn').hidden = !ns;
-      if (!ns) setStatus('Il download non è disponibile in questa vista: usa Copia GPX e incolla il testo in un file .gpx.');
-    }, function () { setStatus('Il download non è disponibile in questa vista: usa Copia GPX.'); });
-  } else {
-    $('dlBtn').hidden = false;
-  }
-  $('dlBtn').addEventListener('click', function () {
-    if (!state.result) return;
-    var name = baseName();
-    if (downloads) {
-      setStatus('Conferma il salvataggio dello zip…');
-      downloads.save({ filename: name + '.zip', data: P.zipSingle(name + '.gpx', gpxText()) }).then(function (res) {
-        setStatus(res && res.status === 'delivered' ? 'File consegnato.' : 'Zip salvato: dentro c\'è ' + name + '.gpx da importare su Wikiloc.');
-      }, function (err) {
-        var code = err && err.code;
-        if (code === 'declined') setStatus('Salvataggio annullato.');
-        else if (code === 'rate_limited') setStatus('C\'è già una richiesta di salvataggio aperta.');
-        else if (code === 'extension_not_enabled' || code === 'rejected_extension') setStatus('Qui lo zip non si può salvare: usa Copia GPX.');
-        else { setStatus('Il download non è disponibile in questa vista: usa Copia GPX.'); $('dlBtn').hidden = true; }
-      });
-    } else if (!inViewer) {
-      var url = URL.createObjectURL(new Blob([gpxText()], { type: 'application/gpx+xml' }));
-      var a = document.createElement('a'); a.href = url; a.download = name + '.gpx'; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
-      setStatus('Salvato ' + name + '.gpx.');
-    }
-  });
-  /* ---------------- esporta / importa i dati ---------------- */
-  function exportData() {
-    var text = JSON.stringify({ app: 'avinox-mode-planner', version: 1, exportedAt: new Date().toISOString(),
-      settings: { rider: state.rider, route: state.route }, rides: state.rides }, null, 2);
-    var name = 'avinox-planner-dati.json', msg = $('dataMsg');
-    if (downloads) {
-      downloads.save({ filename: name, data: text }).then(function () { msg.textContent = 'Dati esportati in ' + name + '.'; },
-        function (err) { msg.textContent = err && err.code === 'declined' ? 'Esportazione annullata.' : 'Qui non posso salvare file: apri l\'app dal suo indirizzo.'; });
-    } else if (!inViewer) {
-      var url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-      var a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
-      msg.textContent = 'Dati esportati in ' + name + ': ora aprilo dalla nuova app con Importa dati.';
-    } else {
-      msg.textContent = 'Qui non posso salvare file: apri l\'app dal suo indirizzo.';
-    }
-  }
-  $('exportBtn').addEventListener('click', exportData);
-  $('moveExport').addEventListener('click', function () { exportData(); $('h-data').scrollIntoView({ behavior: 'smooth' }); });
-  $('importFile').addEventListener('change', function () {
-    var f = $('importFile').files[0], msg = $('dataMsg');
-    if (!f) return;
-    var reader = new FileReader();
-    reader.onload = function () {
-      try {
-        var d = JSON.parse(String(reader.result));
-        if (!d || d.app !== 'avinox-mode-planner' || !d.settings) throw new Error('formato');
-        localStorage.setItem(STORE_KEY, JSON.stringify({ rider: d.settings.rider || {}, route: d.settings.route || {} }));
-        localStorage.setItem(RIDES_KEY, JSON.stringify(Array.isArray(d.rides) ? d.rides : []));
-        msg.textContent = 'Dati importati: ricarico l\'app.';
-        setTimeout(function () { location.reload(); }, 600);
-      } catch (e) {
-        msg.textContent = e.message === 'formato' ? 'Questo file non è un\'esportazione di Avinox Mode Planner.' : 'Non riesco a importare i dati: il file è valido? Il browser permette di salvare dati?';
-      }
-    };
-    reader.readAsText(f);
-    $('importFile').value = '';
-  });
-  // vecchio indirizzo: invito a spostarsi sul nuovo portando i dati
-  if (NEW_HOME && location.hostname === 'andicola.github.io') {
-    $('moveLink').href = NEW_HOME; $('moveLink').textContent = NEW_HOME.replace(/^https:\/\//, '').replace(/\/$/, '');
-    $('moveBanner').hidden = false;
-  }
-
-  $('copyGpx').addEventListener('click', function () { if (state.result) copy(gpxText(), $('copyGpx'), $('cueManual'), $('cueManualText')); });
-  $('copyCues').addEventListener('click', function () { if (state.result) copy(P.cueText(state.file.name, state.result), $('copyCues'), $('cueManual'), $('cueManualText')); });
-  $('copySchema').addEventListener('click', function () { if (state.schemaText) copy(state.schemaText, $('copySchema'), $('schemaManual'), $('schemaManualText')); });
-
-  /* ---------------- avvio ---------------- */
-  load();
-  loadRides();
-  bindRider();
-  bindRoute();
-  renderSchema();
-  var sample = P.sampleRoute();
-  state.file = { name: sample.name, sample: true };
-  state.base = P.prepareRoute(sample.points);
-  replan();
-  var rt = null;
-  window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (state.result) drawChart(); }, 120); });
-  var redraw = function () { if (state.result) { drawChart(); drawShape(); } };
-  if (window.matchMedia) {
-    var mq = window.matchMedia('(prefers-color-scheme: dark)');
-    if (mq.addEventListener) mq.addEventListener('change', redraw);
-  }
-  new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-})();
-</script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

@@ -8,7 +8,8 @@
     "test": "node --test",
     "build:single": "node scripts/build-single.js",
     "serve": "npx --yes serve@14.2.4 -l 8080 .",
-    "build:site": "node scripts/build-site.js"
+    "build:site": "node scripts/build-site.js",
+    "i18n:prefill": "node scripts/prefill-i18n.js"
   },
   "engines": {
     "node": ">=18"

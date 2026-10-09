@@ -2,14 +2,14 @@
 
 # Avinox Mode Planner
 
-Pagina web per chi pedala con un motore **DJI Avinox M2/M2S** (sviluppata su una Amflow PR Carbon Pro con batteria RS800). Fa due cose:
+Pagina web per chi pedala con un motore **DJI Avinox M2 o M2S** (sviluppata su una Amflow PR Carbon Pro con batteria RS800), in italiano e in inglese. Fa due cose:
 
 1. **Schema modalità**: dati peso, cadenza e potenza, ti dà per ECO, AUTO, TRAIL e TURBO solo i numeri da inserire nell'app Avinox (livello o range di livelli, potenza max, coppia max e parametri dinamici).
 2. **Percorso, batteria e avvisi**: carichi il GPX/KML del giro e la pagina lo divide in tratti per pendenza. Per ogni tratto sceglie la modalità e stima la batteria lungo il percorso. Dove la modalità cambia crea un waypoint. Scarichi un GPX con traccia e waypoint da importare su Wikiloc e da seguire con l'Apple Watch.
 
 La bici non può cambiare modalità da sola in base al percorso. Il piano serve a dirti quando cambiarla, con pochi avvisi mirati: AUTO regola già l'assistenza dentro il suo range.
 
-Tutto gira nel browser: il file GPX non viene caricato da nessuna parte.
+Tutto gira nel browser: il file GPX non viene caricato da nessuna parte. È gratis e senza pubblicità; se ti è utile puoi [sostenere il progetto con PayPal](https://paypal.me/andicola).
 
 ## Come si usa
 
@@ -23,7 +23,8 @@ Tutto gira nel browser: il file GPX non viene caricato da nessuna parte.
   docker run -d -p 8080:80 --name avinox-mode-planner avinox-mode-planner
   ```
 
-- **File unico**: `npm run build:single` crea `dist/avinox-mode-planner.html` con lo script incorporato, da aprire anche offline.
+- **File unico**: `npm run build:single` crea `dist/avinox-mode-planner.html` con gli script incorporati, da aprire anche offline.
+- **Lingua**: il selettore IT/EN in alto cambia tutta la pagina, compresi i testi dei waypoint nel GPX. Alla prima apertura segue la lingua del telefono e poi ricorda la scelta.
 
 ### Dal file al polso
 
@@ -38,7 +39,8 @@ Tutto gira nel browser: il file GPX non viene caricato da nessuna parte.
 
 È il porting lato browser di `/api/calculate` di [avinox-setup-app](https://github.com/lucad87/avinox-setup-app). I test confrontano i risultati con quelli del server originale.
 
-- Livelli di assistenza: tabella della community per l'M2S (livello 3 = 100%, 4 = 150%, 8 = 300%, 13 = 700% della spinta del ciclista). Non sono specifiche DJI.
+- Motore e batteria: **M2S** (130 Nm, 1300 W; Boost 150 Nm e 1500 W) o **M2** (110 Nm, 1100 W; Boost 125 Nm). Batterie FS600, FP700, FS800, RS600 e RS800: la capacità entra nella stima del giro e con l'M2S il Boost pieno da 1500 W c'è solo con FP700 o RS800.
+- Livelli di assistenza: tabella della community per l'M2S, usata anche per l'M2 (livello 3 = 100%, 4 = 150%, 8 = 300%, 13 = 700% della spinta del ciclista). Non sono specifiche DJI.
 - Bande per modalità: ECO 1–7 e TURBO 8–15 (fissi), AUTO 3–11 e TRAIL 6–13 (range). Ogni modalità è ancorata alla precedente.
 - Potenza a passi di 50 W, coppia a passi di 5 Nm (i valori che l'app accetta). La coppia è dimensionata per una salita a 60 rpm.
 - Stili: Risparmio, Bilanciato, Enduro (W/kg per modalità del calcolatore originale).
@@ -84,7 +86,7 @@ Ogni waypoint riporta nel nome la **batteria minima per finire il giro con la ri
 
 ### Fondo da OpenStreetMap
 
-Con un GPX caricato, **Leggi il fondo da OpenStreetMap** invia a Overpass solo punti campionati della traccia (uno ogni 500 m) e classifica il fondo delle strade in sei voci (asfalto, sterrato compatto, terra, sassi e radici, roccia, fango). Ogni tratto usa il suo fondo per il consumo e, con AUTO, per la coppia; dove OSM non dice nulla vale il fondo prevalente. Il lettore è `surface-osm.js` del calcolatore originale, senza modifiche. Dentro l'artifact di claude.ai la richiesta è bloccata: funziona da GitHub Pages, dall'app installata o in locale.
+Con un GPX caricato, **Leggi il fondo da OpenStreetMap** invia a Overpass solo punti campionati della traccia (uno ogni 500 m) e classifica il fondo delle strade in sei voci (asfalto, sterrato compatto, terra, sassi e radici, roccia, fango). Ogni tratto usa il suo fondo per il consumo e, con AUTO, per la coppia; dove OSM non dice nulla vale il fondo prevalente. Il lettore è `surface-osm.js` del calcolatore originale, senza modifiche. Dentro l'artifact di claude.ai la richiesta è bloccata: funziona dall'indirizzo pubblico, dall'app installata o in locale.
 
 ### Taratura con i giri reali
 
@@ -97,11 +99,14 @@ npm test               # node:test, nessuna dipendenza
 npm run build:single   # dist/avinox-mode-planner.html
 ```
 
-- `index.html`: interfaccia (HTML, CSS e JS senza framework).
-- `planner.js`: calcolo delle modalità, lettura GPX/KML, tratti, energia, taratura, export GPX e zip. Funziona sia nel browser sia in Node.
+- `index.html`: struttura e stile della pagina. I testi italiani dentro gli elementi con `data-i18n` vengono da `i18n.js`: dopo aver cambiato un testo esegui `npm run i18n:prefill` (i test controllano che siano allineati).
+- `app.js`: logica dell'interfaccia (JS senza framework).
+- `i18n.js`: tutti i testi dell'interfaccia in italiano e in inglese, con le stesse chiavi (verificato dai test).
+- `planner.js`: calcolo delle modalità, lettura GPX/KML, tratti, energia, taratura, export GPX e zip, testi dei waypoint nelle due lingue. Funziona sia nel browser sia in Node.
 - `surface-osm.js`: lettura del fondo da OpenStreetMap (dal calcolatore originale).
 - `manifest.webmanifest`, `sw.js`, `icons/`: app installabile e funzionamento offline. Le icone si rigenerano con `python3 scripts/make-icons.py` (serve Playwright).
-- `test/`: test del calcolo, del piano, della batteria, della taratura, del GPX e dello zip.
+- `og-image.png`: anteprima dei link su Facebook, WhatsApp e simili (1200×630), rigenerabile con `python3 scripts/make-og-image.py`.
+- `test/`: test del calcolo (M2S e M2), del piano, della batteria, della taratura, del GPX, dello zip, delle traduzioni e della pagina.
 
 ### Pubblicazione
 
@@ -109,6 +114,10 @@ Non c'è backend: la pagina è statica e tutti i calcoli girano nel browser. `np
 
 - **Cloudflare Pages** (indirizzo principale): progetto `avinox-planner` collegato al repo, build command `npm run build:site`, output `_site`. Ogni push su `main` viene pubblicato su https://avinox-planner.pages.dev. Il file `_headers` fa ricontrollare sempre pagina e service worker.
 - **GitHub Pages**: il workflow `.github/workflows/pages.yml` pubblica la stessa build su `andicola.github.io/avinox-mode-planner/`.
+
+## Sostieni il progetto
+
+L'app è gratuita, senza pubblicità e senza raccolta di dati. Se ti è utile puoi offrire un caffè con [PayPal](https://paypal.me/andicola): il pulsante **Sostieni il progetto** è anche in alto nella pagina.
 
 ## Crediti e licenza
 
@@ -120,4 +129,4 @@ Non c'è backend: la pagina è statica e tutti i calcoli girano nel browser. `np
 
 ## English
 
-A browser-only tool for **DJI Avinox M2/M2S** e-bikes. It turns rider weight, cadence and power into the numbers to enter in the Avinox app for ECO, AUTO, TRAIL and TURBO, ported from [avinox-setup-app](https://github.com/lucad87/avinox-setup-app). It also splits a GPX/KML route into gradient sections and picks a mode for each. It estimates the battery along the way, lowers the assistance when needed to arrive with the reserve you choose, and exports a GPX with mode-change waypoints for Wikiloc and Apple Watch. Run it by opening `index.html`, with Docker (`docker build -t avinox-mode-planner . && docker run -p 8080:80 avinox-mode-planner`) or on GitHub Pages. MIT licensed.
+A browser-only tool for **DJI Avinox M2 and M2S** e-bikes, in English and Italian (IT/EN switch at the top of the page): https://avinox-planner.pages.dev It turns rider weight, cadence and power into the numbers to enter in the Avinox app for ECO, AUTO, TRAIL and TURBO, ported from [avinox-setup-app](https://github.com/lucad87/avinox-setup-app). It also splits a GPX/KML route into gradient sections and picks a mode for each. It estimates the battery along the way, lowers the assistance when needed to arrive with the reserve you choose, and exports a GPX with mode-change waypoints for Wikiloc and Apple Watch. Pick your motor (M2S or M2) and battery (FS600, FP700, FS800, RS600, RS800). Run it from the address above (add it to your Home Screen to use it as an app), by opening `index.html`, or with Docker (`docker build -t avinox-mode-planner . && docker run -p 8080:80 avinox-mode-planner`). Free, no ads, no data collection; if it helps you, you can [support it on PayPal](https://paypal.me/andicola). Unofficial, not affiliated with DJI or Amflow. MIT licensed.
