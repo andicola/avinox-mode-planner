@@ -10,7 +10,7 @@
   var RIDES_KEY = 'avinox-mode-planner-rides';
   var LANG_KEY = 'avinox-mode-planner-lang';
   var NEW_HOME = 'https://avinox-planner.pages.dev/';   // indirizzo principale dell'app (Cloudflare Pages)
-  var DONATE_URL = 'https://paypal.me/andicola';
+  var DONATE_URL = 'https://ko-fi.com/andicola';
   /* Spinta stimata dal peso del ciclista quando potenza e cadenza non sono note. */
   var EFFORT = { poco: { wkg: 1.2 }, normale: { wkg: 1.6 }, tanto: { wkg: 2.2 } };
   var EST_CADENCE = 80;

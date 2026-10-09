@@ -9,7 +9,7 @@ Pagina web per chi pedala con un motore **DJI Avinox M2 o M2S** (sviluppata su u
 
 La bici non può cambiare modalità da sola in base al percorso. Il piano serve a dirti quando cambiarla, con pochi avvisi mirati: AUTO regola già l'assistenza dentro il suo range.
 
-Tutto gira nel browser: il file GPX non viene caricato da nessuna parte. È gratis e senza pubblicità; se ti è utile puoi [sostenere il progetto con PayPal](https://paypal.me/andicola).
+Tutto gira nel browser: il file GPX non viene caricato da nessuna parte. È gratis e senza pubblicità; se ti è utile puoi [offrirmi un caffè su Ko-fi](https://ko-fi.com/andicola).
 
 ## Come si usa
 
@@ -117,7 +117,7 @@ Non c'è backend: la pagina è statica e tutti i calcoli girano nel browser. `np
 
 ## Sostieni il progetto
 
-L'app è gratuita, senza pubblicità e senza raccolta di dati. Se ti è utile puoi offrire un caffè con [PayPal](https://paypal.me/andicola): il pulsante **Sostieni il progetto** è anche in alto nella pagina.
+L'app è gratuita, senza pubblicità e senza raccolta di dati. Se ti è utile puoi offrirmi un caffè su [Ko-fi](https://ko-fi.com/andicola) (con la carta, senza registrazione): il pulsante **Sostieni il progetto** è anche in alto nella pagina.
 
 ## Crediti e licenza
 
@@ -129,4 +129,4 @@ L'app è gratuita, senza pubblicità e senza raccolta di dati. Se ti è utile pu
 
 ## English
 
-A browser-only tool for **DJI Avinox M2 and M2S** e-bikes, in English and Italian (IT/EN switch at the top of the page): https://avinox-planner.pages.dev It turns rider weight, cadence and power into the numbers to enter in the Avinox app for ECO, AUTO, TRAIL and TURBO, ported from [avinox-setup-app](https://github.com/lucad87/avinox-setup-app). It also splits a GPX/KML route into gradient sections and picks a mode for each. It estimates the battery along the way, lowers the assistance when needed to arrive with the reserve you choose, and exports a GPX with mode-change waypoints for Wikiloc and Apple Watch. Pick your motor (M2S or M2) and battery (FS600, FP700, FS800, RS600, RS800). Run it from the address above (add it to your Home Screen to use it as an app), by opening `index.html`, or with Docker (`docker build -t avinox-mode-planner . && docker run -p 8080:80 avinox-mode-planner`). Free, no ads, no data collection; if it helps you, you can [support it on PayPal](https://paypal.me/andicola). Unofficial, not affiliated with DJI or Amflow. MIT licensed.
+A browser-only tool for **DJI Avinox M2 and M2S** e-bikes, in English and Italian (IT/EN switch at the top of the page): https://avinox-planner.pages.dev It turns rider weight, cadence and power into the numbers to enter in the Avinox app for ECO, AUTO, TRAIL and TURBO, ported from [avinox-setup-app](https://github.com/lucad87/avinox-setup-app). It also splits a GPX/KML route into gradient sections and picks a mode for each. It estimates the battery along the way, lowers the assistance when needed to arrive with the reserve you choose, and exports a GPX with mode-change waypoints for Wikiloc and Apple Watch. Pick your motor (M2S or M2) and battery (FS600, FP700, FS800, RS600, RS800). Run it from the address above (add it to your Home Screen to use it as an app), by opening `index.html`, or with Docker (`docker build -t avinox-mode-planner . && docker run -p 8080:80 avinox-mode-planner`). Free, no ads, no data collection; if it helps you, you can [buy me a coffee on Ko-fi](https://ko-fi.com/andicola). Unofficial, not affiliated with DJI or Amflow. MIT licensed.

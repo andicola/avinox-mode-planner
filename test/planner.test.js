@@ -239,6 +239,6 @@ test('pagina: chiavi di traduzione esistenti, testi italiani allineati, script e
   ids.forEach((id) => assert.ok(html.includes('id="' + id + '"'), 'manca id="' + id + '" in index.html'));
   // ogni chiave usata da app.js con t('...') esiste
   [...app.matchAll(/\bt\('([\w.]+)'\s*[,)]/g)].forEach((m) => assert.ok(m[1] in T.it, 'chiave mancante in i18n.js: ' + m[1]));
-  assert.match(html, /href="https:\/\/paypal\.me\/andicola"/);
+  assert.match(html, /href="https:\/\/ko-fi\.com\/andicola"/);
   assert.match(html, /property="og:image" content="https:\/\/avinox-planner\.pages\.dev\/og-image\.png"/);
 });

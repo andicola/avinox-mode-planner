@@ -6,8 +6,8 @@
     var it = {
         'lang.label': 'Lingua',
         'donate.btn': 'Sostieni il progetto',
-        'donate.text': 'Gratis, senza pubblicità e senza raccolta di dati. Se ti è utile, puoi offrirmi un caffè.',
-        'donate.paypal': 'Dona con PayPal',
+        'donate.text': 'Gratis, senza pubblicità e senza raccolta di dati. Se ti è utile, puoi offrirmi un caffè: su Ko‑fi si dona con la carta, senza bisogno di registrarsi.',
+        'donate.cta': 'Offrimi un caffè su Ko‑fi',
         'aria.copyText': 'Testo da copiare',
 
         'move.lead': 'L\'app ha un nuovo indirizzo:',
@@ -224,8 +224,8 @@
     var en = {
         'lang.label': 'Language',
         'donate.btn': 'Support the project',
-        'donate.text': 'Free, no ads and no data collection. If it helps you, you can buy me a coffee.',
-        'donate.paypal': 'Donate with PayPal',
+        'donate.text': 'Free, no ads and no data collection. If it helps you, you can buy me a coffee: Ko‑fi takes cards, no account needed.',
+        'donate.cta': 'Buy me a coffee on Ko‑fi',
         'aria.copyText': 'Text to copy',
 
         'move.lead': 'The app has a new address:',
