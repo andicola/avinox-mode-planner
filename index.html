@@ -462,7 +462,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
   <section class="install" id="install" aria-labelledby="h-install">
     <h2 id="h-install" style="font-size:22px;font-weight:600;text-transform:uppercase">Usala come app sull'iPhone</h2>
     <ol>
-      <li>Apri <code>https://andicola.github.io/avinox-mode-planner/</code> con <b>Safari</b>.</li>
+      <li>Apri <code>https://avinox-planner.pages.dev</code> con <b>Safari</b>.</li>
       <li>Tocca <b>Condividi</b> (il quadrato con la freccia) e poi <b>Aggiungi alla schermata Home</b>.</li>
       <li>Aprila dall'icona: si apre a tutto schermo e funziona anche senza rete. Serve la rete solo per leggere il fondo da OpenStreetMap.</li>
     </ol>
@@ -507,7 +507,7 @@ input[type="number"]:focus, select:focus { border-color: var(--ink); outline: no
     modes: null, file: null, base: null, result: null, schemaText: '', osm: null, rides: []
   };
   var RIDES_KEY = 'avinox-mode-planner-rides';
-  var NEW_HOME = '';   // indirizzo principale dell'app, se diverso da GitHub Pages
+  var NEW_HOME = 'https://avinox-planner.pages.dev/';   // indirizzo principale dell'app (Cloudflare Pages)
   function loadRides() {
     try { var a = JSON.parse(localStorage.getItem(RIDES_KEY) || '[]'); state.rides = Array.isArray(a) ? a : []; } catch (e) { state.rides = []; }
   }

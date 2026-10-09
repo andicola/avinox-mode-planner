@@ -13,7 +13,7 @@ Tutto gira nel browser: il file GPX non viene caricato da nessuna parte.
 
 ## Come si usa
 
-- **Online**: https://andicola.github.io/avinox-mode-planner/
+- **Online**: https://avinox-planner.pages.dev (Cloudflare Pages, si aggiorna da solo a ogni push su `main`). Resta attivo anche https://andicola.github.io/avinox-mode-planner/, che mostra l'invito a spostarsi sul nuovo indirizzo portando i dati.
 - **Come app sull'iPhone**: apri l'indirizzo con Safari, tocca **Condividi** e poi **Aggiungi alla schermata Home**. Si apre a tutto schermo con la sua icona e funziona anche senza rete (serve la rete solo per leggere il fondo da OpenStreetMap). Su Android: menu di Chrome → **Installa app**.
 - **In locale**: apri `index.html` nel browser, oppure `npm run serve` e vai su http://localhost:8080.
 - **Docker**:
@@ -103,9 +103,12 @@ npm run build:single   # dist/avinox-mode-planner.html
 - `manifest.webmanifest`, `sw.js`, `icons/`: app installabile e funzionamento offline. Le icone si rigenerano con `python3 scripts/make-icons.py` (serve Playwright).
 - `test/`: test del calcolo, del piano, della batteria, della taratura, del GPX e dello zip.
 
-### GitHub Pages
+### Pubblicazione
 
-Il workflow `.github/workflows/pages.yml` pubblica la pagina a ogni push su `main`. Per attivarlo una volta: **Settings → Pages → Source: GitHub Actions**.
+Non c'è backend: la pagina è statica e tutti i calcoli girano nel browser. `npm run build:site` prepara in `_site/` i soli file pubblici.
+
+- **Cloudflare Pages** (indirizzo principale): progetto `avinox-planner` collegato al repo, build command `npm run build:site`, output `_site`. Ogni push su `main` viene pubblicato su https://avinox-planner.pages.dev. Il file `_headers` fa ricontrollare sempre pagina e service worker.
+- **GitHub Pages**: il workflow `.github/workflows/pages.yml` pubblica la stessa build su `andicola.github.io/avinox-mode-planner/`.
 
 ## Crediti e licenza
 
