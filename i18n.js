@@ -40,7 +40,7 @@
         'why.summary': 'Non conosci potenza e cadenza?',
         'why.1': 'Il livello di assistenza moltiplica la tua spinta: chi spinge meno ha bisogno di un livello più alto per avere lo stesso aiuto. Per questo serve sapere quanto spingi.',
         'why.2': 'Se non lo sai, scegli Poco, Normale o Tanto: la pagina stima la potenza dal tuo peso (1,2, 1,6 o 2,2 W per kg).',
-        'why.3': 'La cadenza conta poco: tra 60 e 100 rpm lo schema non cambia. Con le stime la pagina usa 80 rpm.',
+        'why.3': 'Sopra i 60 rpm la cadenza non cambia i valori dello schema, perché la coppia massima è calcolata per una salita a 60 rpm: a parità di potenza, una cadenza più bassa chiede più coppia, non più watt. Sotto i 60 rpm la cadenza conta e la pagina avvisa se il motore non riesce a dare tutta la potenza. Con le stime la pagina usa 80 rpm.',
         'why.4': 'Per misurarle: dall\'app Avinox puoi scegliere i dati mostrati sul display. Se ci sono potenza del ciclista e cadenza, guardale dopo un paio di minuti di salita regolare e inseriscile con "Lo so".',
         'why.5': 'Dopo il primo giro: se l\'assistenza ti sembra troppa, scegli una spinta più alta e i livelli scendono; se ti sembra poca, una più bassa.',
 
@@ -263,7 +263,7 @@
         'why.summary': 'Don\'t know your power and cadence?',
         'why.1': 'The assist level multiplies your own input: a rider who pushes less needs a higher level to get the same help. That is why the page needs to know how hard you pedal.',
         'why.2': 'If you don\'t know, pick Light, Normal or Strong: the page estimates your power from your weight (1.2, 1.6 or 2.2 W per kg).',
-        'why.3': 'Cadence barely matters: between 60 and 100 rpm the settings don\'t change. With the estimates the page uses 80 rpm.',
+        'why.3': 'Above 60 rpm cadence does not change the settings, because max torque is sized for a climb at 60 rpm: at the same power, a lower cadence needs more torque, not more watts. Below 60 rpm cadence matters and the page warns you if the motor cannot deliver the full power. With the estimates the page uses 80 rpm.',
         'why.4': 'To measure them: in the Avinox app you can choose which data the display shows. If rider power and cadence are available, read them after a couple of minutes on a steady climb and enter them with "I know".',
         'why.5': 'After your first ride: if the assistance feels too strong, pick a stronger effort and the levels go down; if it feels too weak, pick a lighter one.',
 
