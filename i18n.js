@@ -18,6 +18,7 @@
         'move.lead': 'L\'app ha un nuovo indirizzo:',
         'move.rest': 'Per portare là impostazioni e giri di taratura tocca <b>Esporta dati</b> qui, poi <b>Importa dati</b> nella nuova app. Se l\'avevi aggiunta alla schermata Home, aggiungi anche quella nuova.',
 
+        'basedOn': 'Basata sul lavoro di Luca Donnaloia — <a href="https://github.com/lucad87/avinox-setup-app" target="_blank" rel="noopener">avinox-setup-app</a> — <a href="https://avinox-calculator.lucad.cloud/" target="_blank" rel="noopener">avinox-calculator.lucad.cloud</a>',
         'intro': 'In alto i numeri da inserire nell\'app Avinox per ogni modalità. Sotto, il giro diviso in tratti con la batteria prevista: dove la modalità giusta cambia nasce un waypoint da importare su Wikiloc e da seguire con l\'orologio.',
 
         'schema.title': 'Schema modalità',
@@ -241,6 +242,7 @@
         'move.lead': 'The app has a new address:',
         'move.rest': 'To take your settings and calibration rides there, tap <b>Export data</b> here, then <b>Import data</b> in the new app. If you had added it to your Home Screen, add the new one too.',
 
+        'basedOn': 'Based on the work of Luca Donnaloia — <a href="https://github.com/lucad87/avinox-setup-app" target="_blank" rel="noopener">avinox-setup-app</a> — <a href="https://avinox-calculator.lucad.cloud/" target="_blank" rel="noopener">avinox-calculator.lucad.cloud</a>',
         'intro': 'At the top, the numbers to enter in the Avinox app for each mode. Below, your ride split into sections with the expected battery: wherever the right mode changes, a waypoint is created to import into Wikiloc and follow on your watch.',
 
         'schema.title': 'Mode settings',
