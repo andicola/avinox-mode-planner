@@ -2,6 +2,8 @@
 
 # Avinox Mode Planner
 
+> Basata sul lavoro di Luca Donnaloia — https://github.com/lucad87/avinox-setup-app — https://avinox-calculator.lucad.cloud/
+
 Pagina web per chi pedala con un motore **DJI Avinox M2 o M2S** (sviluppata su una Amflow PR Carbon Pro con batteria RS800), in italiano e in inglese. Fa due cose:
 
 1. **Schema modalità**: dati peso, cadenza e potenza, ti dà per ECO, AUTO, TRAIL e TURBO solo i numeri da inserire nell'app Avinox (livello o range di livelli, potenza max, coppia max e parametri dinamici).
