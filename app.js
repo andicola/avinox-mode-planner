@@ -387,6 +387,8 @@
 
   function replan() {
     if (!state.base) return;
+    if (ride.replan && ride.replan.base !== state.base) { ride.replan = null; }
+    if (ride.lastBase !== state.base) { ride.lastMode = null; ride.lastD = null; ride.lastBase = state.base; }
     var e = energyParams(state.modes), R = state.route;
     state.result = (R.strategy === 'auto' && e)
       ? P.autoPlan(state.base, { adapt: R.adapt, lead: R.lead, boost: R.boost, maxWaypoints: R.maxWp }, e)
@@ -517,6 +519,8 @@
     renderCalib();
     if (!$('calStart').dataset.touched) $('calStart').value = state.route.startPct;
     drawChart(); drawShape(); renderCues();
+    renderReplan();
+    if (ride.pos) renderNow(ride.pos);
   }
 
   function renderAutoCard() {
@@ -851,6 +855,195 @@
     });
   }
 
+  /* ---------------- in sella: dove sono, che modalità, ripianifica ---------------- */
+  var ride = { watchId: null, lastMode: null, lastD: null, replan: null, audio: null, pos: null };
+
+  function distText(m) { return m < 1000 ? t('dist.m', { m: Math.round(m / 10) * 10 }) : t('dist.km', { km: P.fmtKm(m) }); }
+  function bandOfRun(run) {
+    var base = state.base, counts = {}, bestB = null, bestN = -1;
+    for (var i = run.i0; i <= run.i1; i++) { var b = base.band[i]; counts[b] = (counts[b] || 0) + 1; }
+    Object.keys(counts).forEach(function (b) { if (counts[b] > bestN) { bestN = counts[b]; bestB = b; } });
+    return bestB;
+  }
+  function bandLabel(run) { var b = bandOfRun(run); return b ? t('bandName.' + b) : ''; }
+
+  function beep() {
+    try {
+      if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 600]);
+      var A = window.AudioContext || window.webkitAudioContext;
+      if (!A) return;
+      if (!ride.audio) ride.audio = new A();
+      var ctx = ride.audio, now = ctx.currentTime;
+      [0, 0.35, 0.7].forEach(function (dt) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'square'; o.frequency.value = 880;
+        g.gain.setValueAtTime(0.0001, now + dt); g.gain.exponentialRampToValueAtTime(0.4, now + dt + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, now + dt + 0.25);
+        o.connect(g); g.connect(ctx.destination); o.start(now + dt); o.stop(now + dt + 0.3);
+      });
+    } catch (e) { /* niente suono */ }
+  }
+
+  /* La scheda "adesso": dove sei, in che modalità devi essere, il prossimo avviso. */
+  function renderNow(pos) {
+    var card = $('nowCard'), r = state.result, base = state.base;
+    if (!r || !base || !pos) { card.hidden = true; return; }
+    var hint = ride.lastD != null ? ride.lastD : (parseFloat(String($('nowKm').value).replace(',', '.')) * 1000);
+    var loc = P.locate(base, pos.lat, pos.lon, pos.pickD != null ? pos.pickD : (isFinite(hint) ? hint : null));
+    if (!loc) { card.hidden = true; return; }
+    ride.lastD = loc.off < 150 ? loc.d : ride.lastD;
+    var now = P.modeAt(r, loc.d);
+    var alt = null;
+    if (ride.replan && ride.replan.base === base && loc.d >= ride.replan.result.offset) {
+      alt = P.modeAt(ride.replan.result, loc.d - ride.replan.result.offset);
+    }
+    var mode = alt ? alt.mode : now.mode;
+    card.className = 'now-card mode-' + mode + (ride.lastMode && ride.lastMode !== mode ? ' changed' : '');
+    card.hidden = false;
+    var html = '<div class="where">' + esc(t('ride.at', { km: P.fmtKm(loc.d), m: Math.round(loc.off), acc: Math.round(pos.acc || 0) })) + '</div>';
+    if (loc.off > 150) html += '<div class="line warn">' + esc(t('ride.offTrack', { m: Math.round(loc.off) })) + '</div>';
+    var others = loc.candidates.filter(function (cd) { return Math.abs(cd.d - loc.d) >= 200; });
+    if (others.length) {
+      html += '<div class="line warn">' + esc(t('ride.alsoAt')) + ' ' + others.map(function (cd) {
+        return '<button type="button" class="btn pick-km" data-d="' + cd.d + '">km ' + P.fmtKm(cd.d) + '</button>';
+      }).join(' ') + '</div>';
+    }
+    var shown = alt || now, run = shown.run, endKm = P.fmtKm((alt ? ride.replan.result.offset : 0) + run.end);
+    html += '<div class="big">' + esc(LABEL[mode]) + '<small>' + esc(t('ride.now')) + '</small></div>';
+    html += '<div class="line">' + esc(t(run.gain >= 20 ? 'ride.runGain' : 'ride.run', { band: bandLabel(alt ? Object.assign({}, run, { i0: run.i0 + Math.round(ride.replan.result.offset / 10), i1: run.i1 + Math.round(ride.replan.result.offset / 10) }) : run), km: endKm, gain: Math.round(run.gain) })) + '</div>';
+    if (shown.next) {
+      var nd = (alt ? ride.replan.result.offset : 0) + shown.next.dist;
+      html += '<div class="line mode-' + shown.next.mode + '">' + t('ride.next', { mode: esc(LABEL[shown.next.mode]), dist: esc(distText(shown.toNext)), km: P.fmtKm(nd) }) + '</div>';
+    } else {
+      html += '<div class="line">' + esc(t('ride.nextNone', { km: P.fmtKm(shown.remaining) })) + '</div>';
+    }
+    if (shown.battery != null) html += '<div class="line">' + esc(t('ride.battery', { p: Math.max(0, Math.round(shown.battery)), min: Math.max(0, Math.round(shown.minBattery)) })) + '</div>';
+    if (alt && alt.mode !== now.mode) html += '<div class="line">' + t('ride.replanned', { from: P.fmtKm(ride.replan.result.offset), mode: esc(LABEL[alt.mode]) }) + '</div>';
+    html += '<div><button type="button" class="btn" id="useKmBtn">' + esc(t('ride.useKm')) + '</button></div>';
+    card.innerHTML = html;
+    $('useKmBtn').addEventListener('click', function () { $('nowKm').value = (Math.round(loc.d / 100) / 10).toString(); $('nowPct').focus(); });
+    Array.prototype.forEach.call(card.querySelectorAll('.pick-km'), function (b) {
+      b.addEventListener('click', function () { ride.lastMode = null; renderNow(Object.assign({}, pos, { pickD: parseFloat(b.dataset.d) })); });
+    });
+    if (ride.lastMode && ride.lastMode !== mode) {
+      beep();
+      $('locateStatus').textContent = t('ride.changed', { mode: LABEL[mode] });
+    }
+    ride.lastMode = mode;
+  }
+
+  function geoFail(err, fromWatch) {
+    var st = $('locateStatus');
+    if (!fromWatch && ride.watchId != null) return; // una richiesta singola scaduta non ferma il "segui"
+    st.textContent = err && err.code === 1 ? t('ride.denied') : t('ride.geoError');
+    if (err && err.code === 1 && $('followChk').checked) { $('followChk').checked = false; stopFollow(); }
+  }
+  function onPosition(p) {
+    ride.pos = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy };
+    $('locateStatus').textContent = ride.watchId != null ? t('ride.following') : '';
+    renderNow(ride.pos);
+  }
+  function locateOnce() {
+    var st = $('locateStatus');
+    if (!state.base || (state.file && state.file.sample)) { st.textContent = t('ride.needPlan'); return; }
+    if (!navigator.geolocation) { st.textContent = t('ride.noGeo'); return; }
+    track('locate');
+    st.textContent = t('ride.locating');
+    navigator.geolocation.getCurrentPosition(onPosition, function (err) { geoFail(err, false); }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+  }
+  function startFollow() {
+    var st = $('locateStatus');
+    if (!state.base || (state.file && state.file.sample)) { st.textContent = t('ride.needPlan'); $('followChk').checked = false; return; }
+    if (!navigator.geolocation) { st.textContent = t('ride.noGeo'); $('followChk').checked = false; return; }
+    track('follow');
+    try { var A = window.AudioContext || window.webkitAudioContext; if (A && !ride.audio) ride.audio = new A(); } catch (e) { /* senza suono */ }
+    ride.lastMode = null;
+    st.textContent = t('ride.following');
+    ride.watchId = navigator.geolocation.watchPosition(onPosition, function (err) { geoFail(err, true); }, { enableHighAccuracy: true, maximumAge: 2000 });
+  }
+  function stopFollow() {
+    if (ride.watchId != null && navigator.geolocation) navigator.geolocation.clearWatch(ride.watchId);
+    ride.watchId = null;
+    if ($('locateStatus').textContent === t('ride.following')) $('locateStatus').textContent = '';
+  }
+
+  /* Il piano dal punto in cui sei, con la batteria letta sul display. */
+  function doReplan() {
+    var msg = $('replanMsg'), box = $('replanResult'), R = state.route;
+    msg.textContent = '';
+    if (!state.base || !state.result || (state.file && state.file.sample)) { msg.textContent = t('ride.needPlan'); return; }
+    var e = energyParams(state.modes);
+    if (!e) { msg.textContent = t('replan.noEnergy'); return; }
+    var km = parseFloat(String($('nowKm').value).replace(',', '.')), pct = parseFloat($('nowPct').value);
+    if (!(km >= 0 && km * 1000 < state.base.total && pct > 0 && pct <= 100)) { msg.textContent = t('replan.bad'); return; }
+    var res;
+    try {
+      res = P.replanFrom(state.base, planOpts(), e, R.strategy, km * 1000, pct, state.result);
+    } catch (err) { msg.textContent = err.message; return; }
+    track('replan', R.strategy);
+    ride.replan = { base: state.base, result: res, km: km, pct: pct };
+    renderReplan();
+    if (ride.pos) renderNow(ride.pos);
+  }
+  function renderReplan() {
+    var box = $('replanResult'), rp = ride.replan;
+    if (!rp || rp.base !== state.base) { box.hidden = true; box.innerHTML = ''; return; }
+    var r = rp.result, en = r.energy, f = r.from, off = r.offset, R = state.route;
+    box.hidden = false;
+    var lines = [];
+    if (f.observedFactor != null && f.applied) {
+      lines.push(t(f.clamped ? 'replan.calibOut' : 'replan.calib', { used: Math.round(f.usedWh), pred: Math.round(f.predictedWh), f: d2(f.observedFactor), cap: d2(f.factor) }));
+    } else if (off < 2000) lines.push(t('replan.calibEarly'));
+    else lines.push(t('replan.calibNoUse'));
+    if (en) {
+      lines.push(en.arrivalPct < 0 ? t('replan.empty') : t('replan.arrive', { p: Math.round(en.arrivalPct), a: Math.max(0, Math.round(en.arrivalWorst)), b: Math.max(0, Math.round(en.arrivalBest)), r: R.reservePct }));
+      if (r.exhausted) lines.push(t('replan.exhausted'));
+      else if (r.changes && r.changes.length) lines.push(t('replan.adapted', { list: r.changes.map(function (c) { return t('bandName.' + c.band) + ' ' + LABEL[c.from] + ' → ' + LABEL[c.to]; }).join(', ') }));
+    }
+    var html = '<h3 style="font-size:18px;font-weight:600">' + esc(t('replan.title', { km: P.fmtKm(off), p: rp.pct })) + '</h3>';
+    html += lines.map(function (l) { return '<p class="callout">' + esc(l) + '</p>'; }).join('');
+    html += '<ol class="cue-list" id="replanCues"></ol>';
+    html += '<div class="actions"><button type="button" class="btn primary" id="dlRestBtn">' + esc(t('btn.downloadRest')) + '</button>' +
+      '<button type="button" class="btn" id="copyRestBtn">' + esc(t('btn.copyRest')) + '</button></div>' +
+      '<div class="status" id="restStatus" role="status"></div>' +
+      '<div class="manual" id="restManual" hidden><textarea id="restManualText" readonly></textarea></div>';
+    box.innerHTML = html;
+    var list = $('replanCues');
+    r.waypoints.forEach(function (w, i) {
+      var li = el('li', 'cue mode-' + w.mode);
+      var rest = w.name.replace(/^START · /, '').replace(/^(ECO|AUTO|TRAIL|TURBO|BOOST)\s*(· )?/, '').replace(/ · min \d+%$/, '');
+      var head = (w.kind === 'start' ? '<span class="tag" style="margin:0 6px 0 0">' + esc(t('replan.start')) + '</span>' : '') + '<b>' + LABEL[w.mode] + '</b><span class="rest">' + esc(rest) + '</span>';
+      var batt = w.battery != null ? '<i class="' + (en && w.battery < en.reservePct ? 'low' : '') + '">~' + Math.max(0, Math.round(w.battery)) + '%</i>' : '';
+      var when = w.kind === 'start' ? '' : '<i>' + esc(t('replan.in', { dist: distText(w.dist) })) + '</i>';
+      li.innerHTML = '<span class="n">' + (i + 1) + '</span><span class="km">km ' + P.fmtKm(off + w.dist) + when + batt + '</span><div class="t">' + head + '<p>' + esc(w.note || '') + '</p></div>';
+      list.appendChild(li);
+    });
+    var restName = function () { return baseName() + t('file.restSuffix', { km: P.fmtKm(off).replace(',', '.') }); };
+    var restGpx = function () { return P.buildGpx(t('file.gpxName', { name: state.file.name }) + ' · km ' + P.fmtKm(off), r); };
+    $('dlRestBtn').addEventListener('click', function () {
+      track('gpx_download', 'replan');
+      var name = restName();
+      if (downloads) {
+        downloads.save({ filename: name + '.zip', data: P.zipSingle(name + '.gpx', restGpx()) }).then(function () { $('restStatus').textContent = t('replan.saved', { name: name + '.zip' }); },
+          function () { $('restStatus').textContent = t('dl.notHereShort'); });
+      } else if (!inViewer) {
+        saveBlob(restGpx(), 'application/gpx+xml', name + '.gpx');
+        $('restStatus').textContent = t('replan.saved', { name: name + '.gpx' });
+      } else $('restStatus').textContent = t('dl.notHereShort');
+    });
+    $('copyRestBtn').addEventListener('click', function () {
+      var text = P.cueText(state.file.name + ' · km ' + P.fmtKm(off), r).split('\n').map(function (line, i) {
+        return i === 0 ? line : line.replace(/^km\s+([\d.,]+)/, function (m, k) { return 'km ' + P.fmtKm(off + parseFloat(k.replace(',', '.')) * 1000); });
+      }).join('\n');
+      copy(text, $('copyRestBtn'), $('restManual'), $('restManualText'));
+    });
+  }
+  function bindRide() {
+    $('locateBtn').addEventListener('click', locateOnce);
+    $('followChk').addEventListener('change', function () { if ($('followChk').checked) startFollow(); else stopFollow(); });
+    $('replanForm').addEventListener('submit', function (ev) { ev.preventDefault(); doReplan(); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && $('followChk').checked && ride.pos) renderNow(ride.pos); });
+  }
+
   /* ---------------- avvio ---------------- */
   LANG = detectLang();
   P.setLang(LANG);
@@ -864,6 +1057,7 @@
   bindRoute();
   renderStrategy();
   bindFiles();
+  bindRide();
   Array.prototype.forEach.call(document.querySelectorAll('#langSeg button'), function (b) {
     b.addEventListener('click', function () { if (b.dataset.lang !== LANG) setLang(b.dataset.lang); });
   });

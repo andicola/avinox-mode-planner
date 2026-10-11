@@ -77,6 +77,71 @@ test('stima della batteria e adattamento alla riserva', () => {
   assert.deepEqual(off.changes, []);
 });
 
+test('in sella: dove sono, che modalità, ripianifica da qui', () => {
+  const base = P.prepareRoute(P.sampleRoute().points);
+  const modes = P.calcModes({ riderWeight: 87, bikeWeight: 24.2, cadence: 85, riderPower: 85, wkg: BAL });
+  const e = energyFor(modes);
+  const plan = P.plan(base, OPTS, e);
+
+  /* dove sono: un punto della traccia si ritrova al suo km, uno spostato di 60 m lo segnala */
+  const at = P.positionAt(base.points, 7400);
+  const here = P.locate(base, at.lat, at.lon);
+  assert.ok(Math.abs(here.d - 7400) < 15, 'km ritrovato: ' + here.d);
+  assert.ok(here.off < 2);
+  const aside = P.locate(base, at.lat + 60 / 111320, at.lon);
+  assert.ok(aside.off > 50 && aside.off < 70, 'scarto ' + aside.off);
+
+  /* che modalità: il tratto che contiene il km, il prossimo avviso oltre */
+  const now = P.modeAt(plan, 7400);
+  assert.ok(now.run.start <= 7400 && 7400 < now.run.end);
+  assert.equal(now.mode, now.run.mode);
+  assert.ok(!now.next || now.next.dist > 7400);
+  assert.ok(now.battery > 0 && now.battery <= 100);
+  assert.ok(Math.abs(now.remaining - (base.total - 7400)) < 1);
+
+  /* ripianifica: dal km 10 con più batteria del previsto il resto ci sta meglio */
+  const expectedAt10 = plan.energy.pctAt(10000);
+  const again = P.replanFrom(base, OPTS, e, 'waypoint', 10000, Math.round(expectedAt10), plan);
+  assert.ok(Math.abs(again.total - (base.total - 10000)) < 20, 'tratto rimanente');
+  assert.equal(again.offset, 10000);
+  assert.equal(again.waypoints[0].kind, 'start');
+  assert.ok(again.from.applied, 'con 10 km fatti la taratura si applica');
+  assert.ok(Math.abs(again.from.observedFactor - 1) < 0.08, 'consumo come previsto: fattore ~1, era ' + again.from.observedFactor);
+  assert.ok(Math.abs(again.energy.arrivalPct - plan.energy.arrivalPct) < 4, 'stesso arrivo previsto');
+
+  /* consumato il doppio: il fattore sale e l'arrivo scende (o il piano si adatta) */
+  const used = e.startPct - expectedAt10;
+  const worse = P.replanFrom(base, OPTS, e, 'waypoint', 10000, Math.round(e.startPct - 2 * used), plan);
+  assert.ok(worse.from.observedFactor > 1.8, 'fattore osservato ' + worse.from.observedFactor);
+  assert.equal(worse.energy.personalFactor, 1.5, 'limitato al massimo ammesso');
+  assert.ok(worse.from.clamped && worse.from.applied);
+  assert.ok(worse.energy.arrivalPct < again.energy.arrivalPct);
+
+  /* andata e ritorno: lo stesso posto è al km 2 e al km 8; il km di riferimento sceglie il passaggio */
+  const out = P.sampleRoute().points.slice(0, 1400);
+  const back = out.slice().reverse();
+  const ab = P.prepareRoute(out.concat(back.slice(1)));
+  const spot = P.positionAt(ab.points, 2000);
+  const l1 = P.locate(ab, spot.lat, spot.lon);
+  assert.ok(l1.candidates.length >= 2, 'due passaggi: ' + JSON.stringify(l1.candidates));
+  assert.ok(Math.abs(l1.d - 2000) < 20, 'senza riferimento il primo passaggio');
+  const l2 = P.locate(ab, spot.lat, spot.lon, ab.total - 2300);
+  assert.ok(Math.abs(l2.d - (ab.total - 2000)) < 20, 'col riferimento il ritorno: ' + l2.d);
+
+  /* troppo presto per tarare: il fattore resta quello di partenza */
+  const early = P.replanFrom(base, OPTS, e, 'waypoint', 800, 95, plan);
+  assert.ok(!early.from.applied);
+  assert.equal(early.energy.personalFactor, 1);
+
+  /* tutto in AUTO da metà giro */
+  const auto = P.replanFrom(base, { adapt: true, lead: 100, boost: false, maxWaypoints: 25 }, Object.assign({ wkg: BAL }, e), 'auto', 15000, 55, plan);
+  assert.equal(auto.strategy, 'auto');
+  assert.ok(auto.waypoints.length >= 1);
+
+  /* a fine giro non c'è niente da pianificare */
+  assert.throws(() => P.replanFrom(base, OPTS, e, 'waypoint', base.total - 100, 50, plan));
+});
+
 test('GPX con un waypoint per avviso e tutta la traccia', () => {
   const s = P.sampleRoute();
   const base = P.prepareRoute(s.points);
@@ -235,7 +300,7 @@ test('pagina: chiavi di traduzione esistenti, testi italiani allineati, script e
   assert.deepEqual(scripts, ['surface-osm.js', 'planner.js', 'i18n.js', 'app.js']);
   const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
   const ids = new Set([...app.matchAll(/\$\('([\w-]+)'\)/g)].map((m) => m[1]));
-  ['copyAuto', 'autoRow', 'autoManual', 'autoManualText'].forEach((id) => ids.delete(id)); // creati da app.js
+  ['copyAuto', 'autoRow', 'autoManual', 'autoManualText', 'useKmBtn', 'replanCues', 'dlRestBtn', 'copyRestBtn', 'restStatus', 'restManual', 'restManualText'].forEach((id) => ids.delete(id)); // creati da app.js
   ids.forEach((id) => assert.ok(html.includes('id="' + id + '"'), 'manca id="' + id + '" in index.html'));
   // ogni chiave usata da app.js con t('...') esiste
   [...app.matchAll(/\bt\('([\w.]+)'\s*[,)]/g)].forEach((m) => assert.ok(m[1] in T.it, 'chiave mancante in i18n.js: ' + m[1]));

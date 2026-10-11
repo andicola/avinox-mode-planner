@@ -754,6 +754,119 @@
         };
     };
 
+    /* ---------------- in sella: dove sono, che modalità, ripianifica ---------------- */
+
+    /**
+     * Il punto della traccia più vicino a una posizione GPS: distanza lungo il
+     * giro (d, in metri) e scarto dalla traccia (off, in metri). Su un anello che
+     * ripassa dallo stesso posto vince il punto più vicino; a parità, il primo.
+     */
+    L.locate = function (base, lat, lon, nearD) {
+        var pts = base.points, q = { lat: lat, lon: lon }, c = Math.cos(toRad(lat));
+        var dist = new Array(pts.length), minDist = Infinity;
+        for (var i = 0; i < pts.length; i++) { dist[i] = hav(pts[i], q); if (dist[i] < minDist) minDist = dist[i]; }
+        if (!isFinite(minDist)) return null;
+        /* tutti i passaggi della traccia vicini quanto il più vicino (+25 m):
+           un anello o un andata-ritorno passa di qui più volte */
+        var tol = minDist + 25, cands = [];
+        for (i = 0; i < pts.length; i++) {
+            if (dist[i] > tol) continue;
+            var last = cands[cands.length - 1];
+            if (last && pts[i].d - last.endD < 200) { if (dist[i] < last.off) { last.off = dist[i]; last.index = i; } last.endD = pts[i].d; }
+            else cands.push({ index: i, off: dist[i], endD: pts[i].d });
+        }
+        cands.forEach(function (cd) {
+            var best = cd.index, d = pts[best].d, off = cd.off;
+            [best - 1, best + 1].forEach(function (j) {
+                if (j < 0 || j >= pts.length) return;
+                var a = pts[best], b = pts[j];
+                var ax = (b.lon - a.lon) * c * 111320, ay = (b.lat - a.lat) * 111320;
+                var px = (lon - a.lon) * c * 111320, py = (lat - a.lat) * 111320;
+                var len2 = ax * ax + ay * ay;
+                if (!len2) return;
+                var t = clamp((px * ax + py * ay) / len2, 0, 1);
+                var o = Math.hypot(px - t * ax, py - t * ay);
+                if (o < off) { off = o; d = a.d + (b.d - a.d) * t; }
+            });
+            cd.d = d; cd.off = off; delete cd.endD;
+        });
+        /* con un km di riferimento (l'ultima posizione nota o quello scritto
+           dall'utente) vince il passaggio più vicino a quel km, altrimenti il
+           più vicino in metri e, a parità, il primo */
+        var pick = cands[0];
+        if (nearD != null && isFinite(nearD)) {
+            cands.forEach(function (cd) { if (Math.abs(cd.d - nearD) < Math.abs(pick.d - nearD)) pick = cd; });
+        } else {
+            cands.forEach(function (cd) { if (cd.off < pick.off - 1) pick = cd; });
+        }
+        return { d: pick.d, off: pick.off, index: pick.index, candidates: cands.map(function (cd) { return { d: cd.d, off: cd.off }; }) };
+    };
+
+    /**
+     * Cosa fare al km d secondo un piano: la modalità del tratto in corso, il
+     * prossimo avviso e la batteria prevista. Il tratto è quello del piano
+     * (run.start ≤ d < run.end); l'avviso successivo è il primo waypoint oltre d.
+     */
+    L.modeAt = function (result, d) {
+        var runs = result.runs, run = runs[runs.length - 1];
+        for (var i = 0; i < runs.length; i++) if (d >= runs[i].start && d < runs[i].end) { run = runs[i]; break; }
+        var next = null;
+        for (var j = 0; j < result.waypoints.length; j++) if (result.waypoints[j].dist > d) { next = result.waypoints[j]; break; }
+        var en = result.energy;
+        return {
+            d: d, run: run, mode: run.mode, next: next, toNext: next ? next.dist - d : null,
+            battery: en ? en.pctAt(d) : null, minBattery: en ? en.minPctAt(d) : null,
+            remaining: result.total - d
+        };
+    };
+
+    /**
+     * Ripianifica il giro dal km `fromD` con la batteria `nowPct` letta sul
+     * display. La parte fatta serve a tarare il modello: se dal via si è
+     * consumato più o meno del previsto, lo stesso rapporto si applica al
+     * resto (dopo almeno 2 km, altrimenti il dato è troppo rumoroso).
+     * opts e `e` come in plan/autoPlan; `strategy` 'waypoint' o 'auto'.
+     * Il risultato è un piano sul tratto rimanente (km da 0 = da qui), con
+     * `from` che riassume il punto di ripartenza e la taratura applicata.
+     */
+    L.replanFrom = function (base, opts, e, strategy, fromD, nowPct, previous) {
+        fromD = clamp(fromD, 0, base.total);
+        if (base.total - fromD < 300) throw new Error(tr('Sei a meno di 300 m dall\'arrivo: non c\'è più niente da pianificare.', 'You are less than 300 m from the finish: nothing left to plan.'));
+        var pts = base.points, i0 = 0;
+        while (i0 < pts.length - 1 && pts[i0 + 1].d <= fromD) i0++;
+        var startP = positionAt(pts, fromD);
+        var rest = [{ lat: startP.lat, lon: startP.lon, ele: startP.ele }];
+        for (var i = i0 + 1; i < pts.length; i++) rest.push({ lat: pts[i].lat, lon: pts[i].lon, ele: pts[i].ele });
+        var sub = L.prepareRoute(rest);
+        var from = { d: fromD, pct: nowPct, usedWh: null, predictedWh: null, observedFactor: null, applied: false };
+        var e2 = null;
+        if (e) {
+            e2 = Object.assign({}, e, { startPct: nowPct });
+            delete e2._surf;
+            if (Array.isArray(e.surfaceSamples) && e.surfaceSamples.length) {
+                e2.surfaceSamples = e.surfaceSamples.map(function (s) { return { km: s.km - fromD / 1000, voice: s.voice }; })
+                    .filter(function (s) { return s.km >= -0.5; });
+            }
+            var prevEn = previous && previous.energy;
+            if (prevEn && fromD >= 2000 && e.startPct > nowPct) {
+                var predicted = prevEn.cum[idxOf(base, fromD)] / prevEn.personalFactor;
+                var used = ((e.startPct - nowPct) / 100) * prevEn.effectiveWh;
+                var f = predicted > 0 ? used / predicted : NaN;
+                from.usedWh = used; from.predictedWh = predicted; from.observedFactor = f;
+                if (isFinite(f) && f > 0) {
+                    e2.personalFactor = clamp(f, FACTOR_MIN, FACTOR_MAX);
+                    from.applied = true; from.factor = e2.personalFactor; from.clamped = e2.personalFactor !== f;
+                }
+            }
+        }
+        var res = strategy === 'auto' && e2
+            ? L.autoPlan(sub, { adapt: opts.adapt, lead: opts.lead, boost: opts.boost, maxWaypoints: opts.maxWaypoints }, e2)
+            : L.plan(sub, opts, e2);
+        res.from = from;
+        res.offset = fromD;
+        return res;
+    };
+
     /* ---------------- taratura con i giri reali ---------------- */
     var FACTOR_MIN = 0.5, FACTOR_MAX = 1.5;
 

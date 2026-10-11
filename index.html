@@ -289,6 +289,21 @@ a.btn.primary { color: var(--bg); }
 .callout.thanks { background: var(--soft); color: var(--ink); border-left: 6px solid var(--ok); font-weight: 600; }
 .donate-box h2 { font-size: 22px; font-weight: 600; text-transform: uppercase; }
 .donate-box p { font-size: 14.5px; color: var(--muted); }
+.ride { margin-top: 20px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); padding: 14px 18px 16px; display: grid; gap: 12px; }
+.ride h3, .calib h3 { font-size: 22px; font-weight: 600; text-transform: uppercase; }
+.ride-actions { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; }
+.now-card { border-radius: var(--r); padding: 14px 16px; display: grid; gap: 6px; background: var(--soft); border-left: 6px solid var(--m, var(--ink)); }
+.now-card .where { font-family: var(--f-data); font-size: 13px; color: var(--muted); }
+.now-card .big { font-family: var(--f-display); font-size: 34px; font-weight: 700; color: var(--m, var(--ink)); letter-spacing: .02em; line-height: 1.1; }
+.now-card .big small { font-family: var(--f-data); font-size: 14px; font-weight: 400; color: var(--muted); margin-left: 10px; letter-spacing: 0; }
+.now-card .line { font-size: 14.5px; }
+.now-card .line b { font-family: var(--f-display); letter-spacing: .02em; }
+.now-card.changed { animation: flash 1s ease-in-out 3; }
+.now-card .warn { color: var(--warn-ink); }
+@keyframes flash { 0%, 100% { box-shadow: none; } 50% { box-shadow: 0 0 0 4px var(--m, var(--ink)); } }
+.replan { display: grid; gap: 10px; }
+.replan .cue-list { border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); }
+.replan .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 </style>
 </head>
 <body>
@@ -484,6 +499,24 @@ a.btn.primary { color: var(--bg); }
         <div class="status" id="dlStatus" role="status"></div>
         <div class="manual" id="cueManual" hidden><textarea id="cueManualText" readonly aria-label="Testo da copiare" data-i18n-aria="aria.copyText"></textarea></div>
       </div>
+    </div>
+
+    <div class="ride" id="ride">
+      <h3 data-i18n="ride.title">In sella</h3>
+      <p class="hint" style="font-size:14px" data-i18n="ride.text">Hai perso un avviso? Tocca Dove sono: la pagina legge il GPS del telefono, ti trova sulla traccia e ti dice in che modalità devi essere adesso. Con la batteria letta sul display puoi ripianificare il resto del giro da qui.</p>
+      <div class="ride-actions">
+        <button type="button" class="btn primary" id="locateBtn" data-i18n="btn.locate">Dove sono</button>
+        <label class="check" for="followChk"><input type="checkbox" id="followChk"> <span data-i18n="ride.follow">Segui la posizione e avvisa ai cambi</span></label>
+        <span class="hint" id="locateStatus" role="status"></span>
+      </div>
+      <div class="now-card" id="nowCard" hidden></div>
+      <form class="calib-form" id="replanForm" autocomplete="off">
+        <div class="field"><label for="nowKm" data-i18n="f.nowKm">Km attuale</label><input type="number" id="nowKm" min="0" step="0.1" placeholder="es. 12,4" data-i18n-ph="nowKm.ph"></div>
+        <div class="field"><label for="nowPct" data-i18n="f.nowPct">Batteria adesso (%)</label><input type="number" id="nowPct" min="1" max="100" step="1" placeholder="es. 62" data-i18n-ph="nowPct.ph"></div>
+        <button type="submit" class="btn primary" id="replanBtn" data-i18n="btn.replan">Ripianifica da qui</button>
+      </form>
+      <p class="hint" id="replanMsg" role="status"></p>
+      <div class="replan" id="replanResult" hidden></div>
     </div>
 
     <div class="calib" id="calib">

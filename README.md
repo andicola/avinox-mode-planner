@@ -68,6 +68,11 @@ In alternativa ai cambi di modalità puoi scegliere **Tutto in AUTO**: la pagina
 
 La pagina mostra anche quanto consumeresti con l'AUTO dello schema, per confronto. Il GPX contiene solo il waypoint di partenza con le impostazioni e, se li attivi, gli avvisi per le rampe da Boost.
 
+### In sella
+
+- **Dove sono**: legge il GPS del telefono, trova il punto della traccia più vicino (se il giro ripassa dallo stesso posto propone anche gli altri passaggi) e dice la modalità del tratto in corso, il prossimo avviso e la batteria prevista. Con **Segui la posizione** la pagina resta in ascolto e suona e vibra quando la modalità cambia.
+- **Ripianifica da qui**: km attuale e batteria letta sul display. La parte già fatta tara il modello (consumo reale / previsto, tra ×0,5 e ×1,5, dopo almeno 2 km) e il resto del giro viene ripianificato con la batteria che resta, con lo stesso adattamento alla riserva. Si scarica un GPX con la sola parte rimanente.
+
 ### Batteria
 
 Usa lo stesso modello di consumo del calcolatore originale, applicato tratto per tratto:
