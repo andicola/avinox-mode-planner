@@ -999,12 +999,13 @@
     if (!e) { msg.textContent = t('replan.noEnergy'); return; }
     var km = parseFloat(String($('nowKm').value).replace(',', '.')), pct = parseFloat($('nowPct').value);
     if (!(km >= 0 && km * 1000 < state.base.total && pct > 0 && pct <= 100)) { msg.textContent = t('replan.bad'); return; }
-    var res;
+    var out, r = state.rider;
+    var calcInput = { bike: r.bike, riderWeight: r.riderWeight, bikeWeight: r.bikeWeight, cadence: riderCadence(), riderPower: riderPower(), wkg: P.PRESETS[r.style].wkg };
     try {
-      res = P.replanFrom(state.base, planOpts(), e, R.strategy, km * 1000, pct, state.result);
+      out = P.retuneFrom(state.base, planOpts(), e, R.strategy, km * 1000, pct, state.result, calcInput);
     } catch (err) { msg.textContent = err.message; return; }
     track('replan', R.strategy);
-    ride.replan = { base: state.base, result: res, km: km, pct: pct };
+    ride.replan = { base: state.base, result: out.current, current: out.current, retune: out, useRetuned: false, km: km, pct: pct };
     renderReplan();
     if (ride.pos) renderNow(ride.pos);
   }
@@ -1025,12 +1026,46 @@
     }
     var html = '<h3 style="font-size:18px;font-weight:600">' + esc(t('replan.title', { km: P.fmtKm(off), p: rp.pct })) + '</h3>';
     html += lines.map(function (l) { return '<p class="callout">' + esc(l) + '</p>'; }).join('');
+    /* lo schema per il resto del giro: livelli su o giù in base alla batteria che c'è */
+    var rt = rp.retune, cur = rp.current;
+    html += '<div class="retune"><h4>' + esc(t('retune.title')) + '</h4>';
+    if (!rt.retuned) html += '<p class="hint">' + esc(t('retune.none')) + '</p>';
+    else if (rt.same) html += '<p class="hint">' + esc(t('retune.same', { p: Math.round(rt.retuned.result.energy.arrivalPct) })) + '</p>';
+    else {
+      var up = rt.retuned.scale > 1;
+      html += '<p class="hint">' + esc(t(up ? 'retune.up' : 'retune.down', { a: Math.max(0, Math.round(rt.retuned.result.energy.arrivalPct)), b: Math.max(0, Math.round(cur.energy.arrivalPct)), r: R.reservePct })) + '</p>';
+      html += '<div class="retune-rows" id="retuneRows"></div>';
+      html += '<div class="seg two" role="group" id="retuneSeg">' +
+        '<button type="button" data-use="0" aria-pressed="' + (rp.useRetuned ? 'false' : 'true') + '">' + esc(t('retune.useCurrent')) + '</button>' +
+        '<button type="button" data-use="1" aria-pressed="' + (rp.useRetuned ? 'true' : 'false') + '">' + esc(t('retune.useNew')) + '</button></div>';
+      html += '<p class="hint">' + esc(t('retune.hint')) + '</p>';
+    }
+    html += '</div>';
     html += '<ol class="cue-list" id="replanCues"></ol>';
     html += '<div class="actions"><button type="button" class="btn primary" id="dlRestBtn">' + esc(t('btn.downloadRest')) + '</button>' +
       '<button type="button" class="btn" id="copyRestBtn">' + esc(t('btn.copyRest')) + '</button></div>' +
       '<div class="status" id="restStatus" role="status"></div>' +
       '<div class="manual" id="restManual" hidden><textarea id="restManualText" readonly></textarea></div>';
     box.innerHTML = html;
+    if (rt.retuned && !rt.same) {
+      var rows = $('retuneRows');
+      rt.deltas.forEach(function (dl) {
+        var m = dl.to, was = dl.from;
+        var sub = dl.changed
+          ? t('retune.was', { lv: was.levelMin !== was.levelMax ? was.levelMin + '–' + was.levelMax : was.levelMin, w: was.maxPower, nm: was.maxTorque })
+          : t('retune.unchanged');
+        var row = modeRow('mode-' + dl.key + (dl.changed ? ' changed' : ''), LABEL[dl.key], sub, m);
+        rows.appendChild(row);
+      });
+      Array.prototype.forEach.call(box.querySelectorAll('#retuneSeg button'), function (b) {
+        b.addEventListener('click', function () {
+          rp.useRetuned = b.dataset.use === '1';
+          rp.result = rp.useRetuned ? rt.retuned.result : rp.current;
+          renderReplan();
+          if (ride.pos) renderNow(ride.pos);
+        });
+      });
+    }
     var list = $('replanCues');
     r.waypoints.forEach(function (w, i) {
       var li = el('li', 'cue mode-' + w.mode);

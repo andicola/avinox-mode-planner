@@ -152,6 +152,20 @@ test('in sella: dove sono, che modalità, ripianifica da qui', () => {
   assert.equal(auto.strategy, 'auto');
   assert.ok(auto.waypoints.length >= 1);
 
+  /* schema rifatto per il resto: con più batteria i livelli salgono, con meno scendono */
+  const calcInput = { riderWeight: 87, bikeWeight: 24.2, cadence: 85, riderPower: 85, wkg: BAL };
+  const rich = P.retuneFrom(base, OPTS, e, 'waypoint', 10000, 75, plan, calcInput);
+  assert.ok(rich.retuned && rich.retuned.scale > 1.2 && rich.retuned.scale <= 1.6, 'scala ' + (rich.retuned && rich.retuned.scale));
+  assert.ok(rich.retuned.modes.modes.eco.levelMin >= e.modes.eco.levelMin);
+  assert.ok(rich.retuned.result.energy.arrivalPct >= 15 + 3 - 0.01);
+  assert.ok(rich.deltas.some((d) => d.changed) && !rich.same);
+  const poor = P.retuneFrom(base, OPTS, e, 'waypoint', 10000, 60, plan, calcInput);
+  assert.ok(poor.retuned && poor.retuned.scale < 1, 'scala ' + poor.retuned.scale);
+  assert.ok(poor.retuned.modes.modes.turbo.maxPower <= e.modes.turbo.maxPower);
+  const hopeless = P.retuneFrom(base, OPTS, e, 'waypoint', 10000, 55, plan, calcInput);
+  assert.equal(hopeless.retuned, null, 'i livelli hanno un minimo: qui non basta abbassarli');
+  assert.ok(hopeless.current.changes.length > 0, 'ma il piano con lo schema attuale abbassa le fasce');
+
   /* a fine giro non c'è niente da pianificare */
   assert.throws(() => P.replanFrom(base, OPTS, e, 'waypoint', base.total - 100, 50, plan));
 });
@@ -314,7 +328,7 @@ test('pagina: chiavi di traduzione esistenti, testi italiani allineati, script e
   assert.deepEqual(scripts, ['surface-osm.js', 'planner.js', 'i18n.js', 'app.js']);
   const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
   const ids = new Set([...app.matchAll(/\$\('([\w-]+)'\)/g)].map((m) => m[1]));
-  ['copyAuto', 'autoRow', 'autoManual', 'autoManualText', 'useKmBtn', 'replanCues', 'dlRestBtn', 'copyRestBtn', 'restStatus', 'restManual', 'restManualText'].forEach((id) => ids.delete(id)); // creati da app.js
+  ['copyAuto', 'autoRow', 'autoManual', 'autoManualText', 'useKmBtn', 'replanCues', 'dlRestBtn', 'copyRestBtn', 'restStatus', 'restManual', 'restManualText', 'retuneRows'].forEach((id) => ids.delete(id)); // creati da app.js
   ids.forEach((id) => assert.ok(html.includes('id="' + id + '"'), 'manca id="' + id + '" in index.html'));
   // ogni chiave usata da app.js con t('...') esiste
   [...app.matchAll(/\bt\('([\w.]+)'\s*[,)]/g)].forEach((m) => assert.ok(m[1] in T.it, 'chiave mancante in i18n.js: ' + m[1]));

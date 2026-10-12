@@ -71,7 +71,7 @@ La pagina mostra anche quanto consumeresti con l'AUTO dello schema, per confront
 ### In sella
 
 - **Dove sono**: legge il GPS del telefono, trova il punto della traccia più vicino (se il giro ripassa dallo stesso posto propone anche gli altri passaggi) e dice la modalità del tratto in corso, il prossimo avviso e la batteria prevista. Con **Segui la posizione** la pagina resta in ascolto e suona e vibra quando la modalità cambia.
-- **Ripianifica da qui**: km attuale e batteria letta sul display. La parte già fatta tara il modello (consumo reale / previsto, tra ×0,5 e ×1,5, dopo almeno 2 km) e il resto del giro viene ripianificato con la batteria che resta, con lo stesso adattamento alla riserva. Si scarica un GPX con la sola parte rimanente.
+- **Ripianifica da qui**: km attuale e batteria letta sul display. La parte già fatta tara il modello (consumo reale / previsto, tra ×0,5 e ×1,5, dopo almeno 2 km) e il resto del giro viene ripianificato con la batteria che resta, con lo stesso adattamento alla riserva. Insieme al piano viene rifatto anche lo **schema delle modalità per il resto del giro**: i W/kg dello stile salgono o scendono (fino a ×1,6 / ×0,5) finché la batteria che resta basta ad arrivare con la riserva più 3 punti, e livelli, potenza e coppia vengono ricalcolati. Si sceglie se seguire il piano con lo schema attuale o con quello nuovo. Si scarica un GPX con la sola parte rimanente.
 
 ### Batteria
 

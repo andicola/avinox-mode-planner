@@ -903,6 +903,56 @@
         return res;
     };
 
+    /**
+     * Come replanFrom, ma rifà anche lo schema delle modalità per il resto del
+     * giro: scala i W/kg dello stile (gli stessi per tutte le modalità) finché
+     * la batteria che resta basta ad arrivare con la riserva più 3 punti di
+     * margine, e ricalcola livelli, potenza e coppia con calcModes. Con più
+     * batteria del previsto i livelli salgono, con meno scendono; l'alternativa
+     * resta il piano con lo schema attuale (`current`), che abbassa le fasce.
+     * calcInput: { bike, riderWeight, bikeWeight, cadence, riderPower, wkg }
+     */
+    L.retuneFrom = function (base, opts, e, strategy, fromD, nowPct, previous, calcInput) {
+        var current = L.replanFrom(base, opts, e, strategy, fromD, nowPct, previous);
+        var factor = current.energy ? current.energy.personalFactor : (e.personalFactor || 1);
+        var CUSHION = 3;
+        function at(s) {
+            var wkg = calcInput.wkg.map(function (x) { return x * s; });
+            var m = L.calcModes(Object.assign({}, calcInput, { wkg: wkg }));
+            if (m.error) return null;
+            var e2 = Object.assign({}, e, { modes: m.modes, totalWeight: m.totalWeight, wkg: wkg, personalFactor: factor });
+            delete e2._surf;
+            var r = L.replanFrom(base, Object.assign({}, opts, { adapt: false }), e2, strategy, fromD, nowPct, null);
+            r.from = current.from;
+            return { scale: s, modes: m, result: r, fits: r.energy.arrivalPct >= e.reservePct + CUSHION };
+        }
+        var lo = 0.5, hi = 1.6, best = null;
+        var low = at(lo);
+        if (low && low.fits) {
+            var high = at(hi);
+            if (high && high.fits) best = high;
+            else {
+                best = low;
+                for (var i = 0; i < 18; i++) {
+                    var mid = (lo + hi) / 2, cand = at(mid);
+                    if (cand && cand.fits) { lo = mid; best = cand; } else hi = mid;
+                }
+            }
+        }
+        var same = false, deltas = [];
+        if (best) {
+            same = MODE_KEYS.every(function (k) {
+                var a = e.modes[k], b = best.modes.modes[k];
+                return a.levelMin === b.levelMin && a.levelMax === b.levelMax && a.maxPower === b.maxPower && a.maxTorque === b.maxTorque;
+            });
+            MODE_KEYS.forEach(function (k) {
+                var a = e.modes[k], b = best.modes.modes[k];
+                deltas.push({ key: k, from: a, to: b, changed: !(a.levelMin === b.levelMin && a.levelMax === b.levelMax && a.maxPower === b.maxPower && a.maxTorque === b.maxTorque) });
+            });
+        }
+        return { current: current, retuned: best, same: same, deltas: deltas, cushion: CUSHION };
+    };
+
     /* ---------------- taratura con i giri reali ---------------- */
     var FACTOR_MIN = 0.5, FACTOR_MAX = 1.5;
 
