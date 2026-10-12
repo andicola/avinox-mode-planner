@@ -388,7 +388,7 @@
   function replan() {
     if (!state.base) return;
     if (ride.replan && ride.replan.base !== state.base) { ride.replan = null; }
-    if (ride.lastBase !== state.base) { ride.lastMode = null; ride.lastD = null; ride.lastBase = state.base; }
+    if (ride.lastBase !== state.base) { ride.lastMode = null; ride.lastD = null; ride.lastAt = null; ride.lastBase = state.base; }
     var e = energyParams(state.modes), R = state.route;
     state.result = (R.strategy === 'auto' && e)
       ? P.autoPlan(state.base, { adapt: R.adapt, lead: R.lead, boost: R.boost, maxWaypoints: R.maxWp }, e)
@@ -856,7 +856,7 @@
   }
 
   /* ---------------- in sella: dove sono, che modalità, ripianifica ---------------- */
-  var ride = { watchId: null, lastMode: null, lastD: null, replan: null, audio: null, pos: null };
+  var ride = { watchId: null, lastMode: null, lastD: null, lastAt: null, headingRef: null, replan: null, audio: null, pos: null };
 
   function distText(m) { return m < 1000 ? t('dist.m', { m: Math.round(m / 10) * 10 }) : t('dist.km', { km: P.fmtKm(m) }); }
   function bandOfRun(run) {
@@ -887,10 +887,17 @@
   function renderNow(pos) {
     var card = $('nowCard'), r = state.result, base = state.base;
     if (!r || !base || !pos) { card.hidden = true; return; }
-    var hint = ride.lastD != null ? ride.lastD : (parseFloat(String($('nowKm').value).replace(',', '.')) * 1000);
-    var loc = P.locate(base, pos.lat, pos.lon, pos.pickD != null ? pos.pickD : (isFinite(hint) ? hint : null));
+    /* indizi per scegliere il passaggio giusto: l'ultimo km noto (o quello
+       scritto), quanto si può essere avanzati da allora, la direzione di marcia */
+    var typed = parseFloat(String($('nowKm').value).replace(',', '.')) * 1000;
+    var nearD = pos.pickD != null ? pos.pickD : (ride.lastD != null ? ride.lastD : (isFinite(typed) ? typed : null));
+    var elapsed = ride.lastAt ? (pos.at - ride.lastAt) / 1000 : 0;
+    var loc = P.locate(base, pos.lat, pos.lon, {
+      nearD: nearD, heading: pos.pickD != null ? null : pos.heading,
+      maxAdvance: pos.pickD != null ? 1e9 : (ride.lastD != null ? 200 + elapsed * 15 : 3000)
+    });
     if (!loc) { card.hidden = true; return; }
-    ride.lastD = loc.off < 150 ? loc.d : ride.lastD;
+    if (loc.off < 150) { ride.lastD = loc.d; ride.lastAt = pos.at; }
     var now = P.modeAt(r, loc.d);
     var alt = null;
     if (ride.replan && ride.replan.base === base && loc.d >= ride.replan.result.offset) {
@@ -899,13 +906,16 @@
     var mode = alt ? alt.mode : now.mode;
     card.className = 'now-card mode-' + mode + (ride.lastMode && ride.lastMode !== mode ? ' changed' : '');
     card.hidden = false;
-    var html = '<div class="where">' + esc(t('ride.at', { km: P.fmtKm(loc.d), m: Math.round(loc.off), acc: Math.round(pos.acc || 0) })) + '</div>';
+    var tag = loc.d < 100 ? ' · ' + t('ride.tagStart') : (loc.d > base.total - 100 ? ' · ' + t('ride.tagFinish') : '');
+    var html = '<div class="where">' + esc(t('ride.at', { km: P.fmtKm(loc.d), m: Math.round(loc.off), acc: Math.round(pos.acc || 0) }) + tag) + '</div>';
     if (loc.off > 150) html += '<div class="line warn">' + esc(t('ride.offTrack', { m: Math.round(loc.off) })) + '</div>';
     var others = loc.candidates.filter(function (cd) { return Math.abs(cd.d - loc.d) >= 200; });
     if (others.length) {
+      var tagOf = function (d) { return d < 100 ? ' · ' + t('ride.tagStart') : (d > base.total - 100 ? ' · ' + t('ride.tagFinish') : ''); };
       html += '<div class="line warn">' + esc(t('ride.alsoAt')) + ' ' + others.map(function (cd) {
-        return '<button type="button" class="btn pick-km" data-d="' + cd.d + '">km ' + P.fmtKm(cd.d) + '</button>';
+        return '<button type="button" class="btn pick-km" data-d="' + cd.d + '">km ' + P.fmtKm(cd.d) + esc(tagOf(cd.d)) + (cd.against ? ' ↩' : '') + '</button>';
       }).join(' ') + '</div>';
+      html += '<div class="where">' + esc(t('ride.alsoHint')) + '</div>';
     }
     var shown = alt || now, run = shown.run, endKm = P.fmtKm((alt ? ride.replan.result.offset : 0) + run.end);
     html += '<div class="big">' + esc(LABEL[mode]) + '<small>' + esc(t('ride.now')) + '</small></div>';
@@ -922,7 +932,7 @@
     card.innerHTML = html;
     $('useKmBtn').addEventListener('click', function () { $('nowKm').value = (Math.round(loc.d / 100) / 10).toString(); $('nowPct').focus(); });
     Array.prototype.forEach.call(card.querySelectorAll('.pick-km'), function (b) {
-      b.addEventListener('click', function () { ride.lastMode = null; renderNow(Object.assign({}, pos, { pickD: parseFloat(b.dataset.d) })); });
+      b.addEventListener('click', function () { ride.lastMode = null; ride.lastD = parseFloat(b.dataset.d); ride.lastAt = pos.at; renderNow(Object.assign({}, pos, { pickD: parseFloat(b.dataset.d) })); });
     });
     if (ride.lastMode && ride.lastMode !== mode) {
       beep();
@@ -938,7 +948,21 @@
     if (err && err.code === 1 && $('followChk').checked) { $('followChk').checked = false; stopFollow(); }
   }
   function onPosition(p) {
-    ride.pos = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy };
+    var c = p.coords, ref = ride.headingRef;
+    /* direzione di marcia: dal GPS se in movimento, altrimenti dall'ultimo
+       punto distante almeno 15 m (una direzione su 15–40 m regge anche sui tornanti) */
+    var heading = isFinite(c.heading) && c.heading !== null && (c.speed == null || c.speed > 1) ? c.heading : null;
+    if (ride.watchId != null) {
+      if (ref) {
+        var dy = (c.latitude - ref.lat) * 111320, dx = (c.longitude - ref.lon) * 111320 * Math.cos(c.latitude * Math.PI / 180);
+        var moved = Math.hypot(dx, dy);
+        if (moved >= 15) {
+          if (heading == null) heading = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+          ride.headingRef = { lat: c.latitude, lon: c.longitude, heading: heading };
+        } else if (heading == null) heading = ref.heading;
+      } else ride.headingRef = { lat: c.latitude, lon: c.longitude, heading: heading };
+    } else ride.headingRef = null;
+    ride.pos = { lat: c.latitude, lon: c.longitude, acc: c.accuracy, heading: heading, at: p.timestamp || Date.now() };
     $('locateStatus').textContent = ride.watchId != null ? t('ride.following') : '';
     renderNow(ride.pos);
   }

@@ -761,7 +761,33 @@
      * giro (d, in metri) e scarto dalla traccia (off, in metri). Su un anello che
      * ripassa dallo stesso posto vince il punto più vicino; a parità, il primo.
      */
-    L.locate = function (base, lat, lon, nearD) {
+    /** Direzione della traccia (gradi, 0 = nord) attorno al km d, su ±25 m:
+     *  corta, così regge anche sui tornanti. */
+    function trackBearing(base, d) {
+        var pts = base.points;
+        var a = positionAt(pts, Math.max(0, d - 25)), b = positionAt(pts, Math.min(base.total, d + 25));
+        var dy = b.lat - a.lat, dx = (b.lon - a.lon) * Math.cos(toRad(a.lat));
+        return (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+    }
+    function angleDiff(a, b) { var x = Math.abs(a - b) % 360; return x > 180 ? 360 - x : x; }
+
+    /**
+     * opts: { nearD, maxAdvance, heading }
+     * - nearD: l'ultimo km noto (o quello scritto): vince il passaggio più
+     *   vicino a quel km, purché non torni indietro di oltre 300 m né salti
+     *   avanti più di maxAdvance (default 3 km);
+     * - heading: direzione di marcia in gradi; un passaggio percorso in senso
+     *   contrario (oltre 120° di differenza) viene scartato, come nel ritorno
+     *   di un andata-ritorno;
+     * - senza indizi vince il passaggio con il km più basso: alla partenza il
+     *   via e l'arrivo coincidono, e il via è la lettura giusta.
+     */
+    L.locate = function (base, lat, lon, opts) {
+        if (typeof opts === 'number') opts = { nearD: opts };
+        opts = opts || {};
+        var nearD = opts.nearD != null && isFinite(opts.nearD) ? opts.nearD : null;
+        var heading = opts.heading != null && isFinite(opts.heading) ? opts.heading : null;
+        var maxAdvance = opts.maxAdvance > 0 ? opts.maxAdvance : 3000;
         var pts = base.points, q = { lat: lat, lon: lon }, c = Math.cos(toRad(lat));
         var dist = new Array(pts.length), minDist = Infinity;
         for (var i = 0; i < pts.length; i++) { dist[i] = hav(pts[i], q); if (dist[i] < minDist) minDist = dist[i]; }
@@ -793,13 +819,23 @@
         /* con un km di riferimento (l'ultima posizione nota o quello scritto
            dall'utente) vince il passaggio più vicino a quel km, altrimenti il
            più vicino in metri e, a parità, il primo */
-        var pick = cands[0];
-        if (nearD != null && isFinite(nearD)) {
-            cands.forEach(function (cd) { if (Math.abs(cd.d - nearD) < Math.abs(pick.d - nearD)) pick = cd; });
+        cands.forEach(function (cd) {
+            cd.bearing = trackBearing(base, cd.d);
+            cd.against = heading != null && angleDiff(cd.bearing, heading) > 120;
+        });
+        var pool = cands.filter(function (cd) { return !cd.against; });
+        if (!pool.length) pool = cands;
+        var pick = null;
+        if (nearD != null) {
+            var window_ = pool.filter(function (cd) { return cd.d >= nearD - 300 && cd.d <= nearD + maxAdvance; });
+            (window_.length ? window_ : pool).forEach(function (cd) { if (!pick || Math.abs(cd.d - nearD) < Math.abs(pick.d - nearD)) pick = cd; });
         } else {
-            cands.forEach(function (cd) { if (cd.off < pick.off - 1) pick = cd; });
+            pool.forEach(function (cd) { if (!pick || cd.d < pick.d) pick = cd; });
         }
-        return { d: pick.d, off: pick.off, index: pick.index, candidates: cands.map(function (cd) { return { d: cd.d, off: cd.off }; }) };
+        return {
+            d: pick.d, off: pick.off, index: pick.index, bearing: pick.bearing,
+            candidates: cands.map(function (cd) { return { d: cd.d, off: cd.off, against: cd.against }; })
+        };
     };
 
     /**

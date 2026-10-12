@@ -124,9 +124,23 @@ test('in sella: dove sono, che modalità, ripianifica da qui', () => {
   const spot = P.positionAt(ab.points, 2000);
   const l1 = P.locate(ab, spot.lat, spot.lon);
   assert.ok(l1.candidates.length >= 2, 'due passaggi: ' + JSON.stringify(l1.candidates));
-  assert.ok(Math.abs(l1.d - 2000) < 20, 'senza riferimento il primo passaggio');
-  const l2 = P.locate(ab, spot.lat, spot.lon, ab.total - 2300);
-  assert.ok(Math.abs(l2.d - (ab.total - 2000)) < 20, 'col riferimento il ritorno: ' + l2.d);
+  assert.ok(Math.abs(l1.d - 2000) < 20, 'senza indizi il primo passaggio');
+  const l2 = P.locate(ab, spot.lat, spot.lon, { nearD: ab.total - 2300 });
+  assert.ok(Math.abs(l2.d - (ab.total - 2000)) < 20, 'col km noto il ritorno: ' + l2.d);
+  /* il km noto non fa saltare avanti di 10 km: da km 2 si resta all'andata */
+  const l3 = P.locate(ab, spot.lat, spot.lon, { nearD: 1800 });
+  assert.ok(Math.abs(l3.d - 2000) < 20, 'resta all\'andata: ' + l3.d);
+  /* la direzione di marcia: col verso del ritorno vince il ritorno anche senza km noto */
+  const ret = l1.candidates.find((c) => c.d > ab.total / 2);
+  const bearingBack = (P.locate(ab, spot.lat, spot.lon, { nearD: ret.d }).bearing);
+  const l4 = P.locate(ab, spot.lat, spot.lon, { heading: bearingBack });
+  assert.ok(Math.abs(l4.d - ret.d) < 20, 'col verso del ritorno: ' + l4.d);
+  assert.ok(l4.candidates.some((c) => c.against), 'l\'andata è segnata controsenso');
+  /* alla partenza via e arrivo coincidono: senza indizi è il via */
+  const loop = P.prepareRoute(P.sampleRoute().points);
+  const s0 = P.locate(loop, loop.points[0].lat + 3 / 111320, loop.points[0].lon);
+  assert.ok(s0.d < 50, 'alla partenza: ' + s0.d);
+  assert.ok(s0.candidates.some((c) => c.d > loop.total - 100), 'e l\'arrivo è tra i passaggi');
 
   /* troppo presto per tarare: il fattore resta quello di partenza */
   const early = P.replanFrom(base, OPTS, e, 'waypoint', 800, 95, plan);
